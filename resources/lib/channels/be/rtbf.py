@@ -8,11 +8,6 @@ from __future__ import unicode_literals
 import json
 import re
 
-try:  # Python 3
-    from urllib.parse import urlencode
-except ImportError:  # Python 2
-    from urllib import urlencode
-
 import inputstreamhelper
 from codequick import Route, Resolver, Listitem
 import htmlement
@@ -23,6 +18,7 @@ from resources.lib import download, resolver_proxy
 from resources.lib.kodi_utils import (get_kodi_version, get_selected_item_art, get_selected_item_label,
                                       get_selected_item_info, INPUTSTREAM_PROP)
 from resources.lib.menu_utils import item_post_treatment
+from resources.lib.web_utils import urlencode
 
 # TODO
 # Add geoblock (info in JSON)
@@ -321,8 +317,11 @@ def list_videos_program(plugin, item_id, program_id, **kwargs):
                     video_url = video_datas["url_streaming"]["url_hls"]
                 else:
                     video_url = video_datas["url_streaming"]["url"]
-        else:
+        elif "url_embed" in video_datas:
             video_url = video_datas["url_embed"]
+            is_drm = False
+        else:
+            video_url = video_datas["url"]
             is_drm = False
 
         video_id = video_datas["id"]
@@ -393,8 +392,11 @@ def list_sub_categories(plugin, item_id, category_datas, category_id, **kwargs):
 
 
 @Route.register
-def list_videos_category(plugin, item_id, cat_id, **kwargs):
-    resp = urlquick.get(URL_VIDEOS_BY_CAT_ID % (cat_id, PARTNER_KEY))
+def list_videos_category(plugin, item_id, cat_id, offset=0, **kwargs):
+    url = URL_VIDEOS_BY_CAT_ID % (cat_id, PARTNER_KEY)
+    if offset > 0:
+        url += ('&offset=%s' % offset)
+    resp = urlquick.get(url)
     json_parser = resp.json()
 
     for video_datas in json_parser:
@@ -453,6 +455,9 @@ def list_videos_category(plugin, item_id, cat_id, **kwargs):
                             is_downloadable=True)
         yield item
 
+    if len(json_parser) == 100:
+        yield Listitem.next_page(item_id=item_id, cat_id=cat_id, offset=(offset + 100), callback=list_videos_category)
+
 
 @Route.register
 def list_videos_sub_category_dl(plugin, item_id, sub_category_data_uuid,
@@ -465,6 +470,8 @@ def list_videos_sub_category_dl(plugin, item_id, sub_category_data_uuid,
     parser = htmlement.HTMLement()
     parser.feed(json_parser["blocks"][sub_category_data_uuid])
     root = parser.close()
+
+    item_found = False
 
     for sub_category_dl_datas in root.iterfind(".//section[@class='js-item-container']"):
         if sub_category_dl_datas.get('id') != sub_category_id:
@@ -499,7 +506,12 @@ def list_videos_sub_category_dl(plugin, item_id, sub_category_data_uuid,
                               item_id=item_id,
                               video_id=video_id)
             item_post_treatment(item, is_playable=True, is_downloadable=True)
+            item_found = True
             yield item
+
+    if not item_found:
+        yield False
+        return
 
 
 @Resolver.register
@@ -545,10 +557,16 @@ def get_video_url(plugin,
         }
         item.property['inputstream.adaptive.license_key'] = URL_LICENCE_KEY % urlencode(headers2)
         item.property['inputstream.adaptive.manifest_update_parameter'] = 'full'
+        stream_bitrate_limit = plugin.setting.get_int('stream_bitrate_limit')
+        if stream_bitrate_limit > 0:
+            item.property["inputstream.adaptive.max_bandwidth"] = str(stream_bitrate_limit * 1000)
         item.label = get_selected_item_label()
         item.art.update(get_selected_item_art())
         item.info.update(get_selected_item_info())
         return item
+
+    if video_url.endswith('m3u8'):
+        return resolver_proxy.get_stream_with_quality(plugin, video_url=video_url, manifest_type="hls")
 
     return video_url
 
@@ -577,6 +595,10 @@ def get_video_url2(plugin,
 
     if download_mode:
         return download.download_video(stream_url)
+
+    if stream_url.endswith('m3u8'):
+        return resolver_proxy.get_stream_with_quality(plugin, video_url=stream_url, manifest_type="hls")
+
     return stream_url
 
 
@@ -587,7 +609,8 @@ def set_live_url(plugin, item_id, **kwargs):
 
     if "url_streaming" not in json_parser:
         plugin.notify(plugin.localize(30600), plugin.localize(30716))
-        return False
+        yield False
+        return
 
     is_drm = json_parser["drm"]
     if is_drm:
@@ -648,7 +671,8 @@ def list_lives(plugin, item_id, **kwargs):
 
         if "url_streaming" not in live_datas:
             plugin.notify(plugin.localize(30600), plugin.localize(30716))
-            return False
+            yield False
+            return
 
         is_drm = live_datas["drm"]
         if is_drm:
@@ -733,6 +757,9 @@ def get_live_url(plugin, item_id, live_url, is_drm, live_id, **kwargs):
         }
         item.property['inputstream.adaptive.license_key'] = URL_LICENCE_KEY % urlencode(headers2)
         item.property['inputstream.adaptive.manifest_update_parameter'] = 'full'
+        stream_bitrate_limit = plugin.setting.get_int('stream_bitrate_limit')
+        if stream_bitrate_limit > 0:
+            item.property["inputstream.adaptive.max_bandwidth"] = str(stream_bitrate_limit * 1000)
         item.label = get_selected_item_label()
         item.art.update(get_selected_item_art())
         item.info.update(get_selected_item_info())
