@@ -63,7 +63,7 @@ def list_categories(plugin, item_id, **kwargs):
     # Recently added category
     item = Listitem()
     item.label = Script.localize(30728)
-     item.art["thumb"] = iconpath
+    item.art["thumb"] = iconpath
     item.art["fanart"] = fanartpath
     item.set_callback(list_videos, item_id=item_id, order_by="-availability.from")
     item_post_treatment(item)
