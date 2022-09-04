@@ -860,27 +860,12 @@ menu = {
         'enabled': True,
         'order': 129
     },
-    'lequipesup': {
+    'lequipelive': {
         'resolver': '/resources/lib/channels/fr/lequipe:get_live_url',
         'label': 'L\'Equipe Live',
-        'thumb': 'channels/fr/lequipe.png',
-        'fanart': 'channels/fr/lequipe_fanart.png',
-        'm3u_group': 'Région',
-        'available_languages': {
-            "Direct 3": {},
-            "Direct 4": {},
-            "Direct 5": {},
-            "Direct 6": {},
-            "Direct 7": {},
-            "Direct 8": {},
-            "Direct 9": {},
-            "Direct 10": {},
-            "Direct 11": {},
-            "Direct 12": {},
-            "Direct 13": {},
-            "Direct 14": {},
-            "Direct 15": {},
-        },
+        'thumb': 'channels/fr/lequipelive.png',
+        'fanart': 'channels/fr/lequipelive_fanart.png',
+        'm3u_group': 'TNT',
         'enabled': True,
         'order': 130
     },

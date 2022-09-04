@@ -14,23 +14,15 @@ import urlquick
 
 from resources.lib import resolver_proxy, web_utils
 from resources.lib.menu_utils import item_post_treatment
-
+import xbmcgui
 
 # TO DO
 # Rework Date/AIred
-
 URL_ROOT = 'https://www.lequipe.fr'
 
 URL_LIVE = URL_ROOT + '/lachainelequipe/'
 
-URL_INFO_STREAM_LIVE = URL_ROOT + '/js/app.%s.js'
-
 URL_API_LEQUIPE = URL_ROOT + '/equipehd/applis/filtres/videosfiltres.json'
-
-# TODO Channels 1 and 2 are missing
-ADDITIONAL_LIVES = ['k1kypsRZF9plQhqwBRS', 'k5TgcOKBUTM2KnqwBWC', 'kXRfcKHV9HhcZuqwBYP', 'k6oih7JyuEmhrnqwBZT', 'k3HiS3JB0BsORKqwC49',
-                    'k6P3xLH5tTtGSgqwC4P', 'k1y3Q3GC7w8flQry8S3', 'k5VKYQn5hAE4vfry927', 'k2Z9T8IhyLWvyPtITYJ', 'k53cYSxIs49Vf0wkv86',
-                    'k7rZDp22dyZ25EwkvsF', 'k6c3A07yUljlAzwkvtL']
 
 
 @Route.register
@@ -94,9 +86,26 @@ def get_video_url(plugin, item_id, video_id, download_mode=False, **kwargs):
 @Resolver.register
 def get_live_url(plugin, item_id, **kwargs):
 
-    if item_id == 'lequipesup':
-        live = kwargs.get('language', Script.setting["lequipesup.language"])
-        live_id = ADDITIONAL_LIVES[int(re.findall("\d+", live)[0]) - 3]
+    if item_id == 'lequipelive':
+        resp = urlquick.get("https://www.lequipe.fr/directs", headers={'user-agent': web_utils.get_random_ua()}, max_age=-1)
+        live_id = re.compile(r'<article.+?<a href="(.+?)".+?alt="(.+?)"').findall(resp.text)
+        list_url = []
+        list_q = []
+
+        for a in live_id:
+            list_url.append(a[0])
+            list_q.append(a[1])
+
+        if len(list_url) == 0:
+            plugin.notify(plugin.localize(30718), '')
+            return False
+
+        ret = xbmcgui.Dialog().select(Script.localize(30174), list_q)
+        if ret > -1:
+            live_id = list_url[ret]
+        resp = urlquick.get(live_id, headers={'user-agent': web_utils.get_random_ua()}, max_age=-1)
+        live_id = re.compile(r'"EmbedUrl": "(.+?)",').findall(resp.text)[0].rsplit('/', 1)[-1]
+
     else:
         resp = urlquick.get(URL_LIVE, headers={'User-Agent': web_utils.get_random_ua()}, max_age=-1)
         live_id = re.compile(r'video-id\=\"(.*?)\"', re.DOTALL).findall(resp.text)[0]
