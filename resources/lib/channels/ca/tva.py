@@ -13,6 +13,7 @@ import inputstreamhelper
 # noinspection PyUnresolvedReferences
 from codequick import Listitem, Resolver, Route
 import urlquick
+import requests
 
 from resources.lib import resolver_proxy, web_utils
 from resources.lib.addon_utils import get_item_media_path
@@ -24,7 +25,7 @@ from resources.lib.menu_utils import item_post_treatment
 
 URL_ROOT = 'https://www.qub.ca'
 
-URL_API = URL_ROOT + '/proxy/pfu/content-delivery-service/v1'
+URL_API = 'https://api.qub.ca/content-delivery-service/v1'
 
 URL_CATEGORIES = URL_API + '/entities?slug=/%s'
 
@@ -32,19 +33,17 @@ URL_LIVE = URL_ROOT + '/tvaplus/%s/en-direct'
 
 URL_INFO_STREAM = URL_ROOT + '/tvaplus%s'
 
-# AccountId, PlayerId
-URL_BRIGHTCOVE_POLICY_KEY = 'http://players.brightcove.net/%s/%s_default/index.min.js'
-
-# AccountId, VideoId
-URL_BRIGHTCOVE_VIDEO_JSON = 'https://edge.api.brightcove.com/' \
-                            'playback/v1/accounts/%s/videos/%s'
-
-LICENCE_PARAMS = '|Content-Type=&User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) ' \
-                 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3041.0 Safari/537.36|R{SSM}|'
-
 PATTERN_VIDEO_ID = re.compile(r'\"referenceId\":\"(.*?)\"')
 PATTERN_PLAYER = re.compile(r'data-player=\"(.*?)\"')
 PATTERN_ACCOUNT = re.compile(r'data-accound=\"(.*?)\"')
+
+API_HEADERS = {
+    "User-Agent": web_utils.get_random_ua(),
+    "X-API-Key": "f1c19163-0c32-4189-8b3a-10fb28512551/web-app-ssr",
+    "referrer": "https://www.qub.ca/"
+}
+
+VIDEO_HEADERS = {"User-Agent": web_utils.get_random_ua()}
 
 
 @Route.register
@@ -82,7 +81,8 @@ def list_categories(plugin, item_id, **kwargs):
     - Informations
     - ...
     """
-    resp = urlquick.get(URL_CATEGORIES % item_id)
+
+    resp = urlquick.get(URL_CATEGORIES % item_id, headers=API_HEADERS)
     json_parser = json.loads(resp.text)
 
     for category_datas in json_parser['associatedEntities']:
@@ -100,7 +100,7 @@ def list_categories(plugin, item_id, **kwargs):
 @Route.register
 def list_programs(plugin, item_id, category_name, next_url, **kwargs):
     if next_url is None:
-        resp = urlquick.get(URL_CATEGORIES % item_id)
+        resp = urlquick.get(URL_CATEGORIES % item_id, headers=API_HEADERS)
         json_parser = json.loads(resp.text)
 
         for category_datas in json_parser['associatedEntities']:
@@ -146,7 +146,7 @@ def list_programs(plugin, item_id, category_name, next_url, **kwargs):
 
 @Route.register
 def list_seasons(plugin, item_id, program_slug, **kwargs):
-    resp = urlquick.get(URL_API + '/entities?slug=%s' % program_slug)
+    resp = urlquick.get(URL_API + '/entities?slug=%s' % program_slug, headers=API_HEADERS)
     json_parser = json.loads(resp.text)
 
     if 'seasons' in json_parser['knownEntities']:
@@ -173,7 +173,7 @@ def list_seasons(plugin, item_id, program_slug, **kwargs):
 
 @Route.register
 def list_videos_categories(plugin, item_id, program_slug, season_number, **kwargs):
-    resp = urlquick.get(URL_API + '/entities?slug=%s' % program_slug)
+    resp = urlquick.get(URL_API + '/entities?slug=%s' % program_slug, headers=API_HEADERS)
     json_parser = json.loads(resp.text)
 
     if season_number == '-1':
@@ -211,7 +211,7 @@ def yield_videos(item_id, element):
 
 @Route.register
 def list_videos(plugin, item_id, video_category_slug, **kwargs):
-    resp = urlquick.get(URL_API + '/entities?slug=%s' % video_category_slug)
+    resp = urlquick.get(URL_API + '/entities?slug=%s' % video_category_slug, headers=API_HEADERS)
     json_parser = json.loads(resp.text)
 
     for video_datas in json_parser['associatedEntities']:
@@ -237,96 +237,24 @@ def list_videos(plugin, item_id, video_category_slug, **kwargs):
             item_id=item_id, video_category_slug=json_parser['next'])
 
 
-# BRIGHTCOVE Part
-def get_brightcove_policy_key(data_account, data_player):
-    """Get policy key"""
-    file_js = urlquick.get(URL_BRIGHTCOVE_POLICY_KEY %
-                           (data_account, data_player))
-    return re.compile('policyKey:"(.+?)"').findall(file_js.text)[0]
-
-
 @Resolver.register
-def get_video_url(plugin,
-                  item_id,
-                  video_slug,
-                  download_mode=False,
-                  **kwargs):
-    is_helper = inputstreamhelper.Helper('mpd', drm='widevine')
-    if not is_helper.check_inputstream():
-        return False
+def get_video_url(plugin, item_id, video_slug, download_mode=False, **kwargs):
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache",
-        "Sec-Fetch-User": "?1",
-        "Connection": "keep-alive",
-        "TE": "trailers",
-        "DNT": "1"
-    }
-
-    # Create session
-    session_urlquick = urlquick.Session()
-    resp = session_urlquick.get(URL_INFO_STREAM % video_slug, headers=headers, allow_redirects=False, max_age=-1)
-
-    while 300 < resp.status_code < 400:
-        resp = session_urlquick.get(resp.next.url, headers=headers, allow_redirects=False, max_age=-1)
+    cookies = {}
+    resp = requests.get(URL_INFO_STREAM % video_slug, headers=VIDEO_HEADERS, cookies=cookies)
 
     data_account = PATTERN_ACCOUNT.findall(resp.text)[0]
     data_player = PATTERN_PLAYER.findall(resp.text)[0]
-    data_video_id = PATTERN_VIDEO_ID.findall(resp.text)[0]
+    data_video_id = "ref:%s" % PATTERN_VIDEO_ID.findall(resp.text)[0]
 
-    # Method to get JSON from 'edge.api.brightcove.com'
-    resp = urlquick.get(
-        URL_BRIGHTCOVE_VIDEO_JSON % (data_account, "ref:%s" % data_video_id),
-        headers={
-            'User-Agent': web_utils.get_random_ua(),
-            'Accept': 'application/json;pk=%s' % (get_brightcove_policy_key(data_account, data_player)),
-            'X-Forwarded-For': plugin.setting.get_string('header_x-forwarded-for')
-        })
-    json_parser = json.loads(resp.text)
-
-    video_url = ''
-    licence_url = ''
-    is_protected_drm = False
-    if 'sources' in json_parser:
-        for url in json_parser["sources"]:
-            if 'src' in url:
-                if 'manifest.mpd' in url["src"]:
-                    video_url = url["src"]
-                    if 'key_systems' in url:
-                        licence_url = url['key_systems']['com.widevine.alpha']['license_url']
-                        is_protected_drm = True
-    else:
-        if json_parser[0]['error_code'] == "ACCESS_DENIED":
-            plugin.notify('ERROR', plugin.localize(30713))
-            return False
-
-    if video_url == '':
-        return False
-
-    item = Listitem()
-    item.path = video_url
-    item.label = get_selected_item_label()
-    item.art.update(get_selected_item_art())
-    item.info.update(get_selected_item_info())
-    item.property[INPUTSTREAM_PROP] = 'inputstream.adaptive'
-    item.property['inputstream.adaptive.manifest_type'] = 'mpd'
-    if is_protected_drm:
-        item.property['inputstream.adaptive.license_type'] = 'com.widevine.alpha'
-        item.property['inputstream.adaptive.license_key'] = licence_url + LICENCE_PARAMS
-    return item
+    return resolver_proxy.get_brightcove_video_json(plugin, data_account=data_account, data_player=data_player, data_video_id=data_video_id)
 
 
 @Resolver.register
 def get_live_url(plugin, item_id, **kwargs):
-    resp = urlquick.get(URL_LIVE % item_id)
+    cookies = {}
+    resp = requests.get(URL_LIVE % item_id, headers=VIDEO_HEADERS, cookies=cookies)
+
     video_url = re.compile(r'videoSourceUrl\":\"(.*?)\"').findall(resp.text)[0]
 
     return resolver_proxy.get_stream_with_quality(plugin, video_url, manifest_type="hls")
