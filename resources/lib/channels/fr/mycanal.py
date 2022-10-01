@@ -22,12 +22,12 @@ try:
 except ImportError:
     from urllib import quote, urlencode
 # noinspection PyUnresolvedReferences
-from codequick import Listitem, Resolver, Route
+from codequick import Listitem, Resolver, Route, Script
 # noinspection PyUnresolvedReferences
 from kodi_six import xbmcgui
 
 from resources.lib import resolver_proxy, web_utils
-from resources.lib.addon_utils import get_item_media_path, Enum
+from resources.lib.addon_utils import get_item_media_path
 from resources.lib.kodi_utils import get_kodi_version, get_selected_item_art, get_selected_item_label, \
     get_selected_item_info, INPUTSTREAM_PROP
 from resources.lib.menu_utils import item_post_treatment
@@ -42,9 +42,16 @@ URL_REPLAY = URL_ROOT_SITE + '/chaines/%s'
 
 URL_TOKEN = 'https://pass-api-v2.canal-plus.com/services/apipublique/createToken'
 
+LIVE_TOKEN_URL = 'https://secure-webtv.canal-plus.com/WebPortal/ottlivetv/api/V4/zones/cpfra/devices/3/apps/1/jobs/InitLiveTV'
+
 URL_VIDEO_DATAS = 'https://secure-gen-hapi.canal-plus.com/conso/playset/unit/%s'
 
 URL_STREAM_DATAS = 'https://secure-gen-hapi.canal-plus.com/conso/view'
+
+LICENSE_URL = 'https://secure-webtv.canal-plus.com/WebPortal/ottlivetv/api/V4/zones/cpfra/devices/31/apps/1/jobs/GetLicence'
+
+CERTIFICATE_URL = 'https://secure-webtv-static.canal-plus.com/widevine/cert/cert_license_widevine_com.bin'
+
 
 # The channel need to be on the same order has the website
 LIVE_MYCANAL = {
@@ -59,11 +66,6 @@ LIVE_DAILYMOTION = {
     'cstar': 'x5gv5v0',
     'canalplus': 'x5gv6be'
 }
-
-
-class CANALPLUS_links(Enum):
-    DAILYMOTION = "1"
-    DEFAULT = "0"
 
 
 def getKeyID():
@@ -483,9 +485,7 @@ def get_video_url(plugin,
         jsonparser_real_stream_datas = session_requests.get(
             jsonparser_stream_datas['@medias'], headers=headers).json()
 
-        certificate_data = base64.b64encode(requests.get(
-            'https://secure-webtv-static.canal-plus.com/widevine/cert/cert_license_widevine_com.bin').content).decode(
-            'utf-8')
+        certificate_data = base64.b64encode(requests.get(CERTIFICATE_URL).content).decode('utf-8')
 
         subtitle_url = ''
         item = Listitem()
@@ -538,13 +538,13 @@ def get_video_url(plugin,
 
 @Resolver.register
 def get_live_url(plugin, item_id, **kwargs):
-    if CANALPLUS_links.DAILYMOTION.value == plugin.setting.get_string('canalplusgroup'):
+    if xbmcgui.Dialog().select(Script.localize(30174), ["MyCanal", "Dailymotion"]):
         return resolver_proxy.get_stream_dailymotion(plugin, LIVE_DAILYMOTION[item_id], False)
 
     deviceKeyId, deviceId, sessionId = getKeyID()
 
     resp_app_config = requests.get("https://www.canalplus.com/chaines/%s" % item_id)
-    EPGID = re.compile('"epgidOTT":"(.+?)"').findall(
+    EPGID = re.compile('\"epgidOTT\":\"(.+?)\"').findall(
         resp_app_config.text)[0].split(",")
 
     json_app_config = re.compile('window.app_config=(.*?)};').findall(
@@ -572,20 +572,15 @@ def get_live_url(plugin, item_id, **kwargs):
         "User-Agent": web_utils.get_random_ua()
     }
 
-    resp = requests.post('https://pass-api-v2.canal-plus.com/services/apipublique/createToken', data=data, headers=hdr).json()
+    resp = requests.post(URL_TOKEN, data=data, headers=hdr, timeout=3).json()
     passToken = resp['response']['passToken']
 
     data = {
         "ServiceRequest": {
             "InData": {
                 "DeviceKeyId": deviceKeyId,
-                "PassData": {
-                    "Id": 0,
-                    "Token": passToken
-                },
-                "PDSData": {
-                    "GroupTypes": "1;2;4"
-                },
+                "PassData": {"Id": 0, "Token": passToken},
+                "PDSData": {"GroupTypes": "1;2;4"},
                 "UserKeyId": "_tl1sb683u"
             }
         }
@@ -596,7 +591,7 @@ def get_live_url(plugin, item_id, **kwargs):
     except AttributeError:
         # no pyopenssl support used / needed / available
         pass
-    resp = requests.post('https://secure-webtv.canal-plus.com/WebPortal/ottlivetv/api/V4/zones/cpfra/devices/3/apps/1/jobs/InitLiveTV', json=data, headers=hdr).json()
+    resp = requests.post(LIVE_TOKEN_URL, json=data, headers=hdr).json()
     liveToken = resp['ServiceResponse']['OutData']['LiveToken']
 
     indexEPG = [i for i, t in enumerate(LIVE_MYCANAL) if t == item_id][0]
@@ -622,9 +617,7 @@ def get_live_url(plugin, item_id, **kwargs):
     resp = requests.get("https://routemeup.canalplus-bo.net/plfiles/v2/metr/dash-ssl/" + item_id + "-hd.json").json()
     url_stream = resp["primary"]["src"]
 
-    LICENSE_URL = 'https://secure-webtv.canal-plus.com/WebPortal/ottlivetv/api/V4/zones/cpfra/devices/31/apps/1/jobs/GetLicence'
-
-    certificate_data = base64.b64encode(requests.get('https://secure-webtv-static.canal-plus.com/widevine/cert/cert_license_widevine_com.bin').content).decode('utf-8')
+    certificate_data = base64.b64encode(requests.get(CERTIFICATE_URL).content).decode('utf-8')
 
     item = Listitem()
     item.label = get_selected_item_label()
