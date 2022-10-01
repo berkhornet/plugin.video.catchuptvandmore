@@ -51,7 +51,7 @@ menu = {
     },
     "stv": {
         "route": "/resources/lib/channels/uk/stv:list_categories",
-        "label": "ITV Hub",
+        "label": "STV Player",
         "thumb": "channels/uk/stv.png",
         "fanart": "channels/uk/stv_fanart.jpg",
         "enabled": True,
