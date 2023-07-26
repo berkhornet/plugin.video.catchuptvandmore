@@ -11,7 +11,6 @@ import json
 # noinspection PyUnresolvedReferences
 from codequick import Listitem, Resolver, Route
 # noinspection PyUnresolvedReferences
-from codequick.utils import urljoin_partial
 import urlquick
 
 from resources.lib import download, resolver_proxy, web_utils
