@@ -68,26 +68,7 @@ CHANNEL_ID_MAP = {
     'tvpalfa': 51656487
 }
 
-
-@Resolver.register
-def get_live_url(plugin, item_id, **kwargs):
-    channels = _get_channels()
-    if channels is None:
-        plugin.notify('INFO', plugin.localize(30716))
-        return False
-
-    live_id = _get_live_id(channels, _get_channel_id(item_id, **kwargs))
-    if live_id is None:
-        # Stream is not available - channel not found on scrapped page
-        plugin.notify('INFO', plugin.localize(30716))
-        return False
-
-    live_stream_url = _get_live_stream_url(live_id)
-    if live_stream_url is None:
-        plugin.notify('INFO', plugin.localize(30716))
-        return False
-
-    return live_stream_url
+GENERIC_HEADERS = {'User-Agent': web_utils.get_random_ua()}
 
 
 def _get_channels():
@@ -95,9 +76,7 @@ def _get_channels():
     Extract the listing of channels from TVP page as a list of JSON elments.
     None if HTTP request fails or infomation moved to another place in the HTML page.
     """
-    resp = urlquick.get(
-        LIVE_MAIN_URL, headers={'User-Agent': web_utils.get_random_ua()},
-        max_age=-1, timeout=30)
+    resp = urlquick.get(LIVE_MAIN_URL, headers=GENERIC_HEADERS, max_age=-1)
     root = resp.parse()
 
     channels_str = None
@@ -149,14 +128,14 @@ def _get_live_stream_url(live_id):
     Get URL to playable m3u8 of the live stream.
     None if HTTP request to get info fails or if there is no m3u8 / mpeg / hls data associated.
     """
+    headers = {
+        'User-Agent': web_utils.get_random_ua(),
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br'
+    }
+    url = URL_STREAMS.format(live_id=live_id)
     try:
-        live_streams_url = urlquick.get(
-            URL_STREAMS.format(live_id=live_id), headers={
-                'User-Agent': web_utils.get_random_ua(),
-                'Accept': '*/*',
-                'Accept-Encoding': 'gzip, deflate, br'
-            },
-            max_age=-1, timeout=30)
+        live_streams_url = urlquick.get(url, headers=headers, max_age=-1)
         live_streams = live_streams_url.json()
     except Exception:
         return None
@@ -166,4 +145,25 @@ def _get_live_stream_url(live_id):
         for stream_format in live_streams.get('formats'):
             if 'application/x-mpegurl' == stream_format.get('mimeType'):
                 live_stream_url = stream_format.get('url')
+    return live_stream_url
+
+
+@Resolver.register
+def get_live_url(plugin, item_id, **kwargs):
+    channels = _get_channels()
+    if channels is None:
+        plugin.notify('INFO', plugin.localize(30716))
+        return False
+
+    live_id = _get_live_id(channels, _get_channel_id(item_id, **kwargs))
+    if live_id is None:
+        # Stream is not available - channel not found on scrapped page
+        plugin.notify('INFO', plugin.localize(30716))
+        return False
+
+    live_stream_url = _get_live_stream_url(live_id)
+    if live_stream_url is None:
+        plugin.notify('INFO', plugin.localize(30716))
+        return False
+
     return live_stream_url
