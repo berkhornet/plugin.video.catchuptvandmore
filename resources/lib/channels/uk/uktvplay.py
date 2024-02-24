@@ -264,7 +264,14 @@ def get_brightcove_policy_key(data_account, data_player):
                            (data_account, data_player))
     return re.compile('policyKey:"(.+?)"').findall(file_js.text)[0]
 
-
+# Temporary Fix to issue #1274
+def get_ids():
+    IDS = 'https://uktvplay.co.uk/_next/static/chunks/app/(navigation)/shows/[brand]/[series]/[episode]/[videoId]/page-af077c3ba4e5c8fe.js'
+    resp = urlquick.get(IDS)
+    data_account = re.search('accountId:"(.+?)",', resp.text).group(1)
+    data_player = re.search('playerId:"(.+?)",', resp.text).group(1)
+    return(data_account,data_player)
+    
 @Resolver.register
 def get_video_url(plugin, item_id, data_video_id, **kwargs):
 
@@ -285,12 +292,11 @@ def get_video_url(plugin, item_id, data_video_id, **kwargs):
     # resp = session_requests.get(URL_ROOT)
     # data_account_player = re.search('//players\.brightcove\.net/([0-9]+)/([A-Za-z0-9]+)_default/', resp.text)
     # data_account = data_account_player.group(1)
-    #data_player = data_account_player.group(2)
+    # data_player = data_account_player.group(2)
     
-    # Insert new code from @mcowell
+    # Insert new code from @nictjir
     # Set data_account / data_player
-    data_account = '1242911124001'
-    data_player = 'H1xnMOqP'
+    data_account,data_player = get_ids()
 
     # Method to get JSON from 'edge.api.brightcove.com'
     resp2 = session_requests.get(
