@@ -214,7 +214,8 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
 
 
 @Route.register
-def list_seasons(plugin, item_id, program_slug, **kwargs):
+# add program_title and program_image to parameters
+def list_seasons(plugin, program_title, program_image, item_id, program_slug, **kwargs):
 
     resp = urlquick.get(URL_INFO_PROGRAM % program_slug)
     json_parser = json.loads(resp.text)
