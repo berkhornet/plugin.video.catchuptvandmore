@@ -163,6 +163,8 @@ def list_programs_sub_categories(plugin, item_id, sub_category_slug, **kwargs):
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
+        # MJR: use program_image as fanart
+        item.art['fanart'] = program_image
         # MJR: add program_title and program_image to parameters
         item.set_callback(list_seasons,
                           program_title=program_title,
@@ -211,6 +213,8 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
+        # MJR: use program_image as fanart
+        item.art['fanart'] = program_image
         # MJR: add program_title and program_image to parameters
         item.set_callback(list_seasons,
                           program_title=program_title,
@@ -260,6 +264,8 @@ def list_videos(plugin, item_id, serie_id, **kwargs):
         item = Listitem()
         item.label = video_title
         item.art['thumb'] = item.art['landscape'] = video_image
+        # MJR: use video_image as fanart
+        item.art["fanart"] = video_image
         item.info['plot'] = video_plot
         item.info['duration'] = video_duration
         item.set_callback(get_video_url,
