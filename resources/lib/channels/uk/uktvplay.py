@@ -144,7 +144,8 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
 
 
 @Route.register
-def list_programs_sub_categories(plugin, item_id, sub_category_slug, **kwargs):
+# add program_title and program_image to parameters
+def list_programs_sub_categories((plugin, program_title, program_image, item_id, program_slug, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS_SUBCATEGORY % sub_category_slug)
     json_parser = json.loads(resp.text)
@@ -187,7 +188,8 @@ def list_letters(plugin, item_id, **kwargs):
 
 
 @Route.register
-def list_programs(plugin, item_id, letter_value, **kwargs):
+# add program_title and program_image to parameters
+def list_programs(plugin, program_title, program_image, item_id, letter_value, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS %
                         (letter_value.replace('0-9', '0'), letter_value))
