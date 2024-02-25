@@ -96,6 +96,10 @@ def list_categories(plugin, item_id, **kwargs):
     """
     item = Listitem()
     item.label = 'A-Z'
+    # MJR: START use UKTVPlay artwork instead of CUTV&More artwork 
+    item.art["thumb"] = iconpath
+    item.art["fanart"] = fanartpath
+    # MJR: END use UKTVPlay artwork instead of CUTV&More artwork 
     item.set_callback(list_letters, item_id=item_id)
     item_post_treatment(item)
     yield item
