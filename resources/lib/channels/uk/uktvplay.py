@@ -15,8 +15,7 @@ from codequick import Listitem, Resolver, Route
 from kodi_six import xbmcgui
 import urlquick
 
-import os
-import xbmcvfs
+from resources.lib import resolver_proxy, web_utils
 
 from resources.lib.kodi_utils import get_kodi_version, get_selected_item_art, get_selected_item_label, get_selected_item_info, INPUTSTREAM_PROP
 from resources.lib.menu_utils import item_post_treatment
@@ -61,6 +60,8 @@ URL_LIVE = 'https://uktvplay.uktv.co.uk/watch-live/%s'
 URL_STREAM_LIVE = 'https://v2-streams-elb.simplestreamcdn.com/api/live/stream/%s?key=%s&platform=chrome&user=%s'
 # data_channel, key, user
 
+URL_DATA_BRIGHTCOVE = 'https://uktvplay.co.uk/_next/static/chunks/app/(navigation)/shows/[brand]/[series]/[episode]/[videoId]/page-af077c3ba4e5c8fe.js'
+
 URL_LIVE_KEY = 'https://mp.simplestream.com/uktv/1.0.4/ss.js'
 
 URL_LIVE_TOKEN = 'https://sctoken.uktvapi.co.uk/?stream_id=%s'
@@ -72,14 +73,8 @@ URL_LOGIN_MODAL = 'https://uktvplay.uktv.co.uk/account/'
 
 URL_COMPTE_LOGIN = 'https://live.mppglobal.com/api/accounts/authenticate/'
 
-HOME              = xbmcvfs.translatePath('special://home/')
-ADDONS            = os.path.join(HOME,     'addons')
-RESOURCE_IMAGES   = os.path.join(ADDONS,   'resource.images.catchuptvandmore')
-RESOURCES         = os.path.join(RESOURCE_IMAGES,   'resources')
-CHANNELS          = os.path.join(RESOURCES,         'channels')
-UK_CHANNELS       = os.path.join(CHANNELS,          'uk')
-fanartpath        = os.path.join(UK_CHANNELS,       'uktvplay_fanart.jpg')
-iconpath          = os.path.join(UK_CHANNELS,       'uktvplay.png')
+GENERIC_HEADERS = {"User-Agent": web_utils.get_random_ua()}
+
 
 @Route.register
 def list_categories(plugin, item_id, **kwargs):
@@ -88,8 +83,6 @@ def list_categories(plugin, item_id, **kwargs):
     """
     item = Listitem()
     item.label = 'A-Z'
-    item.art["thumb"] = iconpath
-    item.art["fanart"] = fanartpath
     item.set_callback(list_letters, item_id=item_id)
     item_post_treatment(item)
     yield item
@@ -102,10 +95,6 @@ def list_categories(plugin, item_id, **kwargs):
         category_slug = category_datas["slug"]
         item = Listitem()
         item.label = category_title
-        # START use UKTVPlay artwork instead of CUTV&More artwork 
-        item.art["thumb"] = iconpath
-        item.art["fanart"] = fanartpath
-        # END use UKTVPlay artwork instead of CUTV&More artwork 
         item.set_callback(list_sub_categories,
                           item_id=item_id,
                           category_slug=category_slug)
@@ -126,10 +115,6 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
                 sub_category_slug = sub_category_datas["slug"]
                 item = Listitem()
                 item.label = sub_category_title
-                # START use UKTVPlay artwork instead of CUTV&More artwork 
-                item.art["thumb"] = iconpath
-                item.art["fanart"] = fanartpath
-                # END use UKTVPlay artwork instead of CUTV&More artwork 
                 item.set_callback(list_programs_sub_categories,
                                   item_id=item_id,
                                   sub_category_slug=sub_category_slug)
@@ -153,10 +138,7 @@ def list_programs_sub_categories(plugin, item_id, sub_category_slug, **kwargs):
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
-        # add program_title and program_image to parameters
         item.set_callback(list_seasons,
-                          program_title=program_title,
-                          program_image=program_image,
                           item_id=item_id,
                           program_slug=program_slug)
         item_post_treatment(item)
@@ -173,8 +155,6 @@ def list_letters(plugin, item_id, **kwargs):
     for letter_value in LETTER_LIST:
         item = Listitem()
         item.label = letter_value
-        item.art["thumb"] = iconpath
-        item.art["fanart"] = fanartpath
         item.set_callback(list_programs,
                           item_id=item_id,
                           letter_value=letter_value)
@@ -199,10 +179,7 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
-        # add program_title and program_image to parameters
         item.set_callback(list_seasons,
-                          program_title=program_title,
-                          program_image=program_image,
                           item_id=item_id,
                           program_slug=program_slug)
         item_post_treatment(item)
@@ -210,8 +187,7 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
 
 
 @Route.register
-# add program_title and program_image to parameters
-def list_seasons(plugin, program_title, program_image, item_id, program_slug, **kwargs):
+def list_seasons(plugin, item_id, program_slug, **kwargs):
 
     resp = urlquick.get(URL_INFO_PROGRAM % program_slug)
     json_parser = json.loads(resp.text)
@@ -222,10 +198,6 @@ def list_seasons(plugin, program_title, program_image, item_id, program_slug, **
 
         item = Listitem()
         item.label = season_title
-        # START use Program Image artwork instead of CUTV&More artwork for seasons
-        item.art["thumb"] = program_image
-        item.art["fanart"] = program_image
-        # END use Program Image artwork instead of CUTV&More artwork for seasons
         item.set_callback(list_videos, item_id=item_id, serie_id=serie_id)
         item_post_treatment(item)
         yield item
@@ -264,75 +236,15 @@ def get_brightcove_policy_key(data_account, data_player):
                            (data_account, data_player))
     return re.compile('policyKey:"(.+?)"').findall(file_js.text)[0]
 
-# Temporary Fix to issue #1274
-def get_ids():
-    IDS = 'https://uktvplay.co.uk/_next/static/chunks/app/(navigation)/shows/[brand]/[series]/[episode]/[videoId]/page-af077c3ba4e5c8fe.js'
-    resp = urlquick.get(IDS)
-    data_account = re.search('accountId:"(.+?)",', resp.text).group(1)
-    data_player = re.search('playerId:"(.+?)",', resp.text).group(1)
-    return(data_account,data_player)
 
 @Resolver.register
 def get_video_url(plugin, item_id, data_video_id, **kwargs):
 
-    if get_kodi_version() < 18:
-        xbmcgui.Dialog().ok('Info', plugin.localize(30602))
-        return False
+    resp = urlquick.get(URL_DATA_BRIGHTCOVE, headers=GENERIC_HEADERS, max_age=-1)
+    data_account = re.search('accountId:"(.+?)",', resp.text).group(1)
+    data_player = re.search('playerId:"(.+?)",', resp.text).group(1)
 
-    is_helper = inputstreamhelper.Helper('mpd', drm='widevine')
-    if not is_helper.check_inputstream():
-        return False
-
-    # create session request
-    session_requests = requests.session()
-
-    # Temporary Fix to issue #1274
-    # Disable original code
-    # Get data_account / data_player
-    # resp = session_requests.get(URL_ROOT)
-    # data_account_player = re.search('//players\.brightcove\.net/([0-9]+)/([A-Za-z0-9]+)_default/', resp.text)
-    # data_account = data_account_player.group(1)
-    # data_player = data_account_player.group(2)
-    
-    # Insert new code from @nictjir
-    # Set data_account / data_player
-    data_account,data_player = get_ids()
-
-    # Method to get JSON from 'edge.api.brightcove.com'
-    resp2 = session_requests.get(
-        URL_BRIGHTCOVE_VIDEO_JSON % (data_account, data_video_id),
-        headers={
-            'User-Agent':
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.67 Safari/537.36',
-            'Accept':
-            'application/json;pk=%s' %
-            (get_brightcove_policy_key(data_account, data_player))
-        })
-
-    json_parser = json.loads(resp2.text)
-
-    video_url = ''
-    licence_key = ''
-    if 'sources' in json_parser:
-        for url in json_parser["sources"]:
-            if 'src' in url:
-                if 'com.widevine.alpha' in url["key_systems"]:
-                    video_url = url["src"]
-                    licence_key = url["key_systems"]['com.widevine.alpha'][
-                        'license_url']
-
-    item = Listitem()
-    item.path = video_url
-    item.label = get_selected_item_label()
-    item.art.update(get_selected_item_art())
-    item.info.update(get_selected_item_info())
-    item.property[INPUTSTREAM_PROP] = 'inputstream.adaptive'
-    item.property['inputstream.adaptive.manifest_type'] = 'mpd'
-    item.property['inputstream.adaptive.license_type'] = 'com.widevine.alpha'
-    item.property[
-        'inputstream.adaptive.license_key'] = licence_key + '|Content-Type=&User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3041.0 Safari/537.36&Host=manifest.prod.boltdns.net|R{SSM}|'
-
-    return item
+    return resolver_proxy.get_brightcove_video_json(plugin, data_account, data_player, data_video_id)
 
 
 @Resolver.register
@@ -425,3 +337,4 @@ def get_live_url(plugin, item_id, **kwargs):
         'inputstream.adaptive.license_key'] = json_parser["response"]["drm"]["widevine"]["licenseAcquisitionUrl"] + '|Content-Type=&User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3041.0 Safari/537.36|R{SSM}|'
 
     return item
+
