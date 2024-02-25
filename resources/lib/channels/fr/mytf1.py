@@ -163,14 +163,13 @@ def list_categories(plugin, item_id, **kwargs):
     json_parser = urlquick.get(URL_API, params=params, headers=headers, max_age=-1).json()
 
     for json_key in list(json_parser['data'].keys()):
-        if json_parser['data'][json_key]['label']:
-            category_name = json_parser['data'][json_key]['label']
-            category_id = json_parser['data'][json_key]['id']
+        category = json_parser['data'][json_key] or {}
 
+        if category.get('label'):
             item = Listitem()
-            item.label = category_name
+            item.label = category['label']
             item.params['item_id'] = item_id
-            item.params['category_id'] = category_id
+            item.params['category_id'] = category['id']
             item.set_callback(list_programs)
             item_post_treatment(item)
 
@@ -350,7 +349,7 @@ def get_video_url(plugin,
     url_json = URL_VIDEO_STREAM % video_id
     json_parser = session.get(url_json, headers=headers_video_stream, params=params, max_age=-1).json()
 
-    if json_parser['delivery']['code'] > 400:
+    if json_parser['delivery']['code'] >= 400:
         plugin.notify('ERROR', plugin.localize(30716))
         return False
 

@@ -76,7 +76,7 @@ URL_FRANCETV_HDFAUTH_URL = 'https://hdfauthftv-a.akamaihd.net/esi/TA?format=json
 URL_LICENSE_FRANCETV = 'https://simulcast-b.ftven.fr/keys/hls.key'
 # URL license
 
-URL_DAILYMOTION_EMBED_2 = 'https://www.dailymotion.com/player/metadata/video/%s?integration=inline&GK_PV5_NEON=1'
+URL_DAILYMOTION_EMBED_2 = 'https://www.dailymotion.com/player/metadata/video/%s'
 
 URL_TWITCH = 'https://player.twitch.tv/?channel=%s'
 
@@ -236,6 +236,10 @@ def get_stream_with_quality(plugin,
         headers.update(GENERIC_HEADERS)
 
     item = Listitem()
+    stream_headers = urlencode(headers)
+    item.property['inputstream.adaptive.stream_headers'] = stream_headers
+    if get_kodi_version() == 20:
+        item.property['inputstream.adaptive.manifest_headers'] = stream_headers
     item.path = video_url
     item.property[INPUTSTREAM_PROP] = "inputstream.adaptive"
 
@@ -246,7 +250,9 @@ def get_stream_with_quality(plugin,
             pass
     else:
         item.property['inputstream.adaptive.license_type'] = 'com.widevine.alpha'
-    item.property["inputstream.adaptive.manifest_type"] = manifest_type
+    if get_kodi_version() < 21:
+        # mandatory until Kodi 20, deprecated on Kodi 21
+        item.property["inputstream.adaptive.manifest_type"] = manifest_type
     if workaround is not None:
         item.property['ResumeTime'] = '43200'  # 12 hours buffer, can be changed if not enough
         item.property['TotalTime'] = workaround
@@ -256,8 +262,7 @@ def get_stream_with_quality(plugin,
         return False
 
     if license_url is not None:
-        stream_headers = urlencode(headers)
-        item.property['inputstream.adaptive.stream_headers'] = stream_headers
+
         if '|' not in license_url:  # add headers only if they are not already in the url
             license_url = '%s|%s|R{SSM}|' % (license_url, stream_headers)
         item.property['inputstream.adaptive.license_key'] = license_url
@@ -303,46 +308,25 @@ def get_stream_kaltura(plugin,
 # DailyMotion Part
 def get_stream_dailymotion(plugin,
                            video_id,
-                           download_mode=False):
-    url_dailymotion = URL_DAILYMOTION_EMBED % video_id
-    return get_stream_default(plugin, url_dailymotion, download_mode)
-    # Code to reactivate when youtubedl is KO for dailymotion
-    # if download_mode:
-    #     return False
-    # url_dmotion = URL_DAILYMOTION_EMBED_2 % (video_id)
-    # resp = urlquick.get(url_dmotion, max_age=-1)
-    # json_parser = json.loads(resp.text)
+                           download_mode=False,
+                           embeder=None):
 
-    # if "qualities" not in json_parser:
-    #     plugin.notify('ERROR', plugin.localize(30716))
+    if download_mode:
+        url_dailymotion = URL_DAILYMOTION_EMBED % video_id
+        return get_stream_default(plugin, url_dailymotion, download_mode)
+    else:
+        if embeder is None:
+            embeder = ''
+        params = {'embedder': embeder}
+        url_dmotion = URL_DAILYMOTION_EMBED_2 % video_id
+        resp = urlquick.get(url_dmotion, headers=GENERIC_HEADERS, params=params, max_age=-1)
+        json_parser = json.loads(resp.text)
 
-    # all_datas_videos_path = []
-    # if "auto" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["auto"][0]["url"])
-    # if "144" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["144"][1]["url"])
-    # if "240" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["240"][1]["url"])
-    # if "380" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["380"][1]["url"])
-    # if "480" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["480"][1]["url"])
-    # if "720" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["720"][1]["url"])
-    # if "1080" in json_parser["qualities"]:
-    #     all_datas_videos_path.append(json_parser["qualities"]["1080"][1]["url"])
+        if "qualities" not in json_parser:
+            plugin.notify('ERROR', plugin.localize(30716))
 
-    # url_stream = ''
-    # for video_path in all_datas_videos_path:
-    #     url_stream = video_path
-
-    # manifest = urlquick.get(url_stream, max_age=-1)
-    # lines = manifest.text.splitlines()
-    # inside_m3u8 = ''
-    # for k in range(0, len(lines) - 1):
-    #     if 'RESOLUTION=' in lines[k]:
-    #         inside_m3u8 = lines[k + 1]
-    # return inside_m3u8.split('#cell')[0]
+        url = json_parser["qualities"]["auto"][0]["url"]
+        return get_stream_with_quality(plugin, url)
 
 
 # Vimeo Part
@@ -366,7 +350,7 @@ def get_stream_vimeo(plugin,
             max_age=-1)
     json_vimeo = json.loads(
         '{' +
-        re.compile('var config \= \{(.*?)\}\;').findall(html_vimeo.text)[0] +
+        re.compile('var config = \{(.*?)};').findall(html_vimeo.text)[0] +
         '}')
     hls_json = json_vimeo["request"]["files"]["hls"]
     default_cdn = hls_json["default_cdn"]
@@ -385,7 +369,7 @@ def get_stream_facebook(plugin,
     return get_stream_default(plugin, url_facebook, download_mode)
 
 
-# Youtube Part
+# YouTube Part
 def get_stream_youtube(plugin, video_id, download_mode=False):
     url_youtube = URL_YOUTUBE % video_id
     return get_stream_default(plugin, url_youtube, download_mode)
@@ -396,7 +380,7 @@ def get_brightcove_policy_key(data_account, data_player):
     """Get policy key"""
     file_js = urlquick.get(URL_BRIGHTCOVE_POLICY_KEY %
                            (data_account, data_player))
-    return re.compile(r'policyKey\:\"(.*?)\"').findall(file_js.text)[0]
+    return re.compile(r'policyKey:\"(.*?)\"').findall(file_js.text)[0]
 
 
 def get_brightcove_video_json(plugin,
@@ -423,20 +407,23 @@ def get_brightcove_video_json(plugin,
     video_url = ''
     license_url = None
     is_drm = False
+    manifest = 'hls'
 
     if 'sources' in json_parser:
         for url in json_parser["sources"]:
-            # Workaroud Inputstream adative can not some types of AES crypted streams
+            # Workaroud Inputstream adative can not play some types of AES crypted streams
             if 'src' in url:
                 if ('m3u8' in url["src"] or 'container' in url) and (is_drm is False):
                     manifest = 'hls'
                     video_url = url["src"]
                 if 'manifest.mpd' in url["src"]:
-                    manifest = 'mpd'
-                    video_url = url["src"]
                     is_drm = True
                     if 'key_systems' in url:
-                        license_url = url['key_systems']['com.widevine.alpha']['license_url']
+                        if 'com.widevine.alpha' in url["key_systems"]:
+                            license_url = url['key_systems']['com.widevine.alpha']['license_url']
+                            manifest = 'mpd'
+                            video_url = url["src"]
+
     else:
         if json_parser[0]['error_code'] == "ACCESS_DENIED":
             plugin.notify('ERROR', plugin.localize(30713))
@@ -447,7 +434,8 @@ def get_brightcove_video_json(plugin,
 
     if download_mode:
         return download.download_video(video_url)
-    return get_stream_with_quality(plugin, video_url=video_url, manifest_type=manifest, headers=headers, license_url=license_url, subtitles=subtitles)
+    return get_stream_with_quality(plugin, video_url=video_url, manifest_type=manifest, headers=headers,
+                                   license_url=license_url, subtitles=subtitles)
 
 
 # MTVN Services Part
@@ -561,12 +549,15 @@ def get_francetv_video_stream(plugin,
             stream_headers = urlencode(headers)
             json_parser2 = json.loads(urlquick.get(url_selected, headers=headers, max_age=-1).text)
             resp3 = urlquick.get(json_parser2['url'], headers=headers, max_age=-1, allow_redirects=False)
-            if resp3.status_code < 400 and resp3.status_code >= 300:
+            if 400 > resp3.status_code >= 300:
                 location_url = resp3.headers['location']
             else:
                 location_url = resp3.url
             item.path = location_url
-            item.property['inputstream.adaptive.stream_headers'] = stream_headers
+            if get_kodi_version() == 20:
+                item.property['inputstream.adaptive.manifest_headers'] = stream_headers
+            else:
+                item.property['inputstream.adaptive.stream_headers'] = stream_headers
             if download_mode:
                 return download.download_video(item.path)
         return item
