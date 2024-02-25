@@ -183,6 +183,10 @@ def list_letters(plugin, item_id, **kwargs):
     for letter_value in LETTER_LIST:
         item = Listitem()
         item.label = letter_value
+        # MJR: START use UKTVPlay artwork instead of CUTV&More artwork 
+        item.art["thumb"] = iconpath
+        item.art["fanart"] = fanartpath
+        # MJR: END use UKTVPlay artwork instead of CUTV&More artwork 
         item.set_callback(list_programs,
                           item_id=item_id,
                           letter_value=letter_value)
