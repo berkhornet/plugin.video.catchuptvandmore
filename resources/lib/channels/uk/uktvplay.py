@@ -15,10 +15,6 @@ from codequick import Listitem, Resolver, Route
 from kodi_six import xbmcgui
 import urlquick
 
-# MJR: use UKTVPlay artwork
-import os
-import xbmcvfs
-
 from resources.lib import resolver_proxy, web_utils
 
 from resources.lib.kodi_utils import get_kodi_version, get_selected_item_art, get_selected_item_label, get_selected_item_info, INPUTSTREAM_PROP
@@ -79,15 +75,6 @@ URL_COMPTE_LOGIN = 'https://live.mppglobal.com/api/accounts/authenticate/'
 
 GENERIC_HEADERS = {"User-Agent": web_utils.get_random_ua()}
 
-# MJR: use UKTVPlay artwork
-HOME              = xbmcvfs.translatePath('special://home/')
-ADDONS            = os.path.join(HOME,     'addons')
-RESOURCE_IMAGES   = os.path.join(ADDONS,   'resource.images.catchuptvandmore')
-RESOURCES         = os.path.join(RESOURCE_IMAGES,   'resources')
-CHANNELS          = os.path.join(RESOURCES,         'channels')
-UK_CHANNELS       = os.path.join(CHANNELS,          'uk')
-fanartpath        = os.path.join(UK_CHANNELS,       'uktvplay_fanart.jpg')
-iconpath          = os.path.join(UK_CHANNELS,       'uktvplay.png')
 
 @Route.register
 def list_categories(plugin, item_id, **kwargs):
@@ -108,10 +95,6 @@ def list_categories(plugin, item_id, **kwargs):
         category_slug = category_datas["slug"]
         item = Listitem()
         item.label = category_title
-        # MJR: START use UKTVPlay artwork instead of CUTV&More artwork 
-        item.art["thumb"] = iconpath
-        item.art["fanart"] = fanartpath
-        # MJR: END use UKTVPlay artwork instead of CUTV&More artwork 
         item.set_callback(list_sub_categories,
                           item_id=item_id,
                           category_slug=category_slug)
@@ -132,10 +115,6 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
                 sub_category_slug = sub_category_datas["slug"]
                 item = Listitem()
                 item.label = sub_category_title
-                # MJR: START use UKTVPlay artwork instead of CUTV&More artwork 
-                item.art["thumb"] = iconpath
-                item.art["fanart"] = fanartpath
-                # MJR: END use UKTVPlay artwork instead of CUTV&More artwork 
                 item.set_callback(list_programs_sub_categories,
                                   item_id=item_id,
                                   sub_category_slug=sub_category_slug)
@@ -144,8 +123,7 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
 
 
 @Route.register
-# add program_title and program_image to parameters
-def list_programs_sub_categories(plugin, program_title, program_image, item_id, program_slug, **kwargs):
+def list_programs_sub_categories(plugin, item_id, sub_category_slug, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS_SUBCATEGORY % sub_category_slug)
     json_parser = json.loads(resp.text)
@@ -160,10 +138,7 @@ def list_programs_sub_categories(plugin, program_title, program_image, item_id, 
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
-        # MJR: add program_title and program_image to parameters
         item.set_callback(list_seasons,
-                          program_title=program_title,
-                          program_image=program_image,
                           item_id=item_id,
                           program_slug=program_slug)
         item_post_treatment(item)
@@ -188,8 +163,7 @@ def list_letters(plugin, item_id, **kwargs):
 
 
 @Route.register
-# add program_title and program_image to parameters
-def list_programs(plugin, program_title, program_image, item_id, letter_value, **kwargs):
+def list_programs(plugin, item_id, letter_value, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS %
                         (letter_value.replace('0-9', '0'), letter_value))
@@ -205,10 +179,7 @@ def list_programs(plugin, program_title, program_image, item_id, letter_value, *
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
-        # MJR: add program_title and program_image to parameters
         item.set_callback(list_seasons,
-                          program_title=program_title,
-                          program_image=program_image,
                           item_id=item_id,
                           program_slug=program_slug)
         item_post_treatment(item)
@@ -216,8 +187,7 @@ def list_programs(plugin, program_title, program_image, item_id, letter_value, *
 
 
 @Route.register
-# add program_title and program_image to parameters
-def list_seasons(plugin, program_title, program_image, item_id, program_slug, **kwargs):
+def list_seasons(plugin, item_id, program_slug, **kwargs):
 
     resp = urlquick.get(URL_INFO_PROGRAM % program_slug)
     json_parser = json.loads(resp.text)
@@ -228,10 +198,6 @@ def list_seasons(plugin, program_title, program_image, item_id, program_slug, **
 
         item = Listitem()
         item.label = season_title
-        # MJR: START use Program Image artwork instead of CUTV&More artwork for seasons
-        item.art["thumb"] = program_image
-        item.art["fanart"] = program_image
-        # MJR: END use Program Image artwork instead of CUTV&More artwork for seasons
         item.set_callback(list_videos, item_id=item_id, serie_id=serie_id)
         item_post_treatment(item)
         yield item
@@ -371,4 +337,3 @@ def get_live_url(plugin, item_id, **kwargs):
         'inputstream.adaptive.license_key'] = json_parser["response"]["drm"]["widevine"]["licenseAcquisitionUrl"] + '|Content-Type=&User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3041.0 Safari/537.36|R{SSM}|'
 
     return item
-
