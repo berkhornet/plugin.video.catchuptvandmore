@@ -51,7 +51,7 @@ menu = {
     },
     "stv": {
         "route": "/resources/lib/channels/uk/stv:list_categories",
-        "label": "STV",
+        "label": "STV Player",
         "thumb": "channels/uk/stv.png",
         "fanart": "channels/uk/stv_fanart.jpg",
         "enabled": True,
@@ -67,7 +67,7 @@ menu = {
     },
     "my5": {
         "route": "/resources/lib/channels/uk/my5:list_categories",
-        "label": "My 5",
+        "label": "My5",
         "thumb": "channels/uk/my5.png",
         "fanart": "channels/uk/my5_fanart.jpg",
         "enabled": True,
