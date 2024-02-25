@@ -145,7 +145,7 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
 
 @Route.register
 # add program_title and program_image to parameters
-def list_programs_sub_categories((plugin, program_title, program_image, item_id, program_slug, **kwargs):
+def list_programs_sub_categories(plugin, program_title, program_image, item_id, program_slug, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS_SUBCATEGORY % sub_category_slug)
     json_parser = json.loads(resp.text)
