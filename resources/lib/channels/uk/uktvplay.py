@@ -8,9 +8,7 @@ from __future__ import unicode_literals
 from builtins import str
 import json
 import re
-import requests
 
-import inputstreamhelper
 from codequick import Listitem, Resolver, Route
 from kodi_six import xbmcgui
 import urlquick
@@ -21,7 +19,6 @@ import xbmcvfs
 
 from resources.lib import resolver_proxy, web_utils
 
-from resources.lib.kodi_utils import get_kodi_version, get_selected_item_art, get_selected_item_label, get_selected_item_info, INPUTSTREAM_PROP
 from resources.lib.menu_utils import item_post_treatment
 
 
@@ -29,13 +26,6 @@ from resources.lib.menu_utils import item_post_treatment
 # Mode code brightcove protected by DRM in resolver_proxy
 
 URL_ROOT = 'https://uktvplay.uktv.co.uk'
-
-URL_BRIGHTCOVE_POLICY_KEY = 'https://players.brightcove.net/%s/%s_default/index.min.js'
-# AccountId, PlayerId
-
-URL_BRIGHTCOVE_VIDEO_JSON = 'https://edge.api.brightcove.com/'\
-                            'playback/v1/accounts/%s/videos/%s'
-# AccountId, VideoId
 
 URL_API = 'https://vschedules.uktv.co.uk'
 
@@ -64,7 +54,7 @@ URL_LIVE = 'https://uktvplay.uktv.co.uk/watch-live/%s'
 URL_STREAM_LIVE = 'https://v2-streams-elb.simplestreamcdn.com/api/live/stream/%s?key=%s&platform=chrome&user=%s'
 # data_channel, key, user
 
-URL_DATA_BRIGHTCOVE = 'https://uktvplay.co.uk/_next/static/chunks/app/(navigation)/shows/[brand]/[series]/[episode]/[videoId]/page-af077c3ba4e5c8fe.js'
+URL_CHANNEL_ID = "https://vschedules.uktv.co.uk/vod/now_and_next/"
 
 URL_LIVE_KEY = 'https://mp.simplestream.com/uktv/1.0.4/ss.js'
 
@@ -76,6 +66,10 @@ URL_LOGIN_TOKEN = 'https://s3-eu-west-1.amazonaws.com/uktv-static/fgprod/play/6f
 URL_LOGIN_MODAL = 'https://uktvplay.uktv.co.uk/account/'
 
 URL_COMPTE_LOGIN = 'https://live.mppglobal.com/api/accounts/authenticate/'
+
+URL_CHUNKS = "https://uktvplay.co.uk/shows/%s/series-%s/episode-%s/%s"
+
+URL_ID = "https://uktvplay.co.uk/_next/"
 
 GENERIC_HEADERS = {"User-Agent": web_utils.get_random_ua()}
 
@@ -199,8 +193,8 @@ def list_letters(plugin, item_id, **kwargs):
 @Route.register
 def list_programs(plugin, item_id, letter_value, **kwargs):
 
-    resp = urlquick.get(URL_PROGRAMS %
-                        (letter_value.replace('0-9', '0'), letter_value))
+    FIXED_URL_PROGRAMS = URL_PROGRAMS % (letter_value.replace('0-9', '0'), letter_value)
+    resp = urlquick.get(FIXED_URL_PROGRAMS, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
     for program_datas in json_parser:
@@ -229,7 +223,7 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
 # MJR: add program_title and program_image to parameters
 def list_seasons(plugin, program_title, program_image, item_id, program_slug, **kwargs):
 
-    resp = urlquick.get(URL_INFO_PROGRAM % program_slug)
+    resp = urlquick.get(URL_INFO_PROGRAM % program_slug, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
     for season_datas in json_parser["series"]:
@@ -250,7 +244,7 @@ def list_seasons(plugin, program_title, program_image, item_id, program_slug, **
 @Route.register
 def list_videos(plugin, item_id, serie_id, **kwargs):
 
-    resp = urlquick.get(URL_VIDEOS % serie_id)
+    resp = urlquick.get(URL_VIDEOS % serie_id, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
     for video_datas in json_parser["episodes"]:
@@ -261,6 +255,11 @@ def list_videos(plugin, item_id, serie_id, **kwargs):
         video_duration = video_datas["duration"] * 60
         video_id = video_datas["video_id"]
 
+        show_name = URL_CHUNKS % (video_datas["brand_slug"],
+                                  video_datas["series_number"],
+                                  video_datas["episode_number"],
+                                  video_datas["video_id"])
+
         item = Listitem()
         item.label = video_title
         item.art['thumb'] = item.art['landscape'] = video_image
@@ -270,23 +269,20 @@ def list_videos(plugin, item_id, serie_id, **kwargs):
         item.info['duration'] = video_duration
         item.set_callback(get_video_url,
                           item_id=item_id,
-                          data_video_id=video_id)
+                          data_video_id=video_id,
+                          show_name=show_name)
         item_post_treatment(item)
         yield item
 
 
-# BRIGHTCOVE Part
-def get_brightcove_policy_key(data_account, data_player):
-    """Get policy key"""
-    file_js = urlquick.get(URL_BRIGHTCOVE_POLICY_KEY %
-                           (data_account, data_player))
-    return re.compile('policyKey:"(.+?)"').findall(file_js.text)[0]
-
-
 @Resolver.register
-def get_video_url(plugin, item_id, data_video_id, **kwargs):
+def get_video_url(plugin, item_id, data_video_id, show_name, **kwargs):
 
-    resp = urlquick.get(URL_DATA_BRIGHTCOVE, headers=GENERIC_HEADERS, max_age=-1)
+    resp = urlquick.get(show_name, headers=GENERIC_HEADERS, max_age=-1)
+    match = re.search('(static/chunks/app/\(navigation\)/shows/\[brand\]/\[series\]/\[episode\]/\[videoId\]/page)(.+?)."\]', resp.text, re.DOTALL)
+
+    full_url_ids = URL_ID + match.group(1) + match.group(2)
+    resp = urlquick.get(full_url_ids, headers=GENERIC_HEADERS, max_age=-1)
     data_account = re.search('accountId:"(.+?)",', resp.text).group(1)
     data_player = re.search('playerId:"(.+?)",', resp.text).group(1)
 
@@ -296,19 +292,11 @@ def get_video_url(plugin, item_id, data_video_id, **kwargs):
 @Resolver.register
 def get_live_url(plugin, item_id, **kwargs):
 
-    if get_kodi_version() < 18:
-        xbmcgui.Dialog().ok('Info', plugin.localize(30602))
-        return False
-
-    is_helper = inputstreamhelper.Helper('mpd', drm='widevine')
-    if not is_helper.check_inputstream():
-        return False
-
     # create session request
-    session_requests = requests.session()
-    session_requests.get(URL_LOGIN_MODAL)
+    session_requests = urlquick.session()
+    session_requests.get(URL_LOGIN_MODAL, headers=GENERIC_HEADERS, max_age=-1)
 
-    resptokenid = session_requests.get(URL_LOGIN_TOKEN)
+    resptokenid = session_requests.get(URL_LOGIN_TOKEN, headers=GENERIC_HEADERS, max_age=-1)
     token_id = re.compile(r'tokenid\":\"(.*?)\"').findall(resptokenid.text)[0]
 
     if plugin.setting.get_string(
@@ -330,56 +318,50 @@ def get_live_url(plugin, item_id, **kwargs):
     # KO - resp2 = session_urlquick.post(
     #     URL_COMPTE_LOGIN, data=payload,
     #     headers={'User-Agent': web_utils.get_ua, 'referer': URL_COMPTE_LOGIN})
-    resplogin = session_requests.post(
-        URL_COMPTE_LOGIN, data=payload, headers={
-            'Accept': 'application/json, text/plain, */*',
-            'Content-Type': 'application/json;charset=UTF-8',
-            'Origin': 'https://uktvplay.uktv.co.uk',
-            'Referer': 'https://uktvplay.uktv.co.uk/account/',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36',
-            'X-TokenId': token_id,
-            'X-Version': '9.0.0'
-        })
-    if resplogin.status_code >= 400:
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Origin': 'https://uktvplay.uktv.co.uk',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'Referer': 'https://uktvplay.uktv.co.uk/account/',
+        'User-Agent': web_utils.get_random_ua(),
+        'X-TokenId': token_id,
+        'X-Version': '9.0.0'
+    }
+    resp = session_requests.post(URL_COMPTE_LOGIN, data=payload, headers=headers, max_age=-1)
+    if resp.status_code >= 400:
         plugin.notify('ERROR', 'UKTVPlay : ' + plugin.localize(30711))
         return False
-    json_parser_resplogin = json.loads(resplogin.content)
+    json_parser_resplogin = json.loads(resp.content)
 
     if 'home_uktvplay' in item_id:
         channel_uktvplay_id = 'home'
     else:
         channel_uktvplay_id = item_id
 
-    respdatachannel = session_requests.get(URL_LIVE % channel_uktvplay_id)
-    data_channel = re.compile(r'channelStreamId:(.*?)}').findall(
-        respdatachannel.text)[0]
+    resp = session_requests.get(URL_CHANNEL_ID, headers=GENERIC_HEADERS, max_age=-1)
+    root = json.loads(resp.text)
+    data_channel = str(root[channel_uktvplay_id][0]['channel_stream_id'])
 
-    respkey = session_requests.get(URL_LIVE_KEY)
+    respkey = session_requests.get(URL_LIVE_KEY, headers=GENERIC_HEADERS, max_age=-1)
     app_key = re.compile(r'app\_key"\ \: \"(.*?)\"').findall(respkey.text)[0]
 
-    resptoken = session_requests.get(URL_LIVE_TOKEN % data_channel)
-    json_parser_resptoken = json.loads(resptoken.text)
+    resp = session_requests.get(URL_LIVE_TOKEN % data_channel, headers=GENERIC_HEADERS, max_age=-1)
+    json_parser_resptoken = json.loads(resp.text)
 
-    respstreamdatas = session_requests.post(
-        URL_STREAM_LIVE % (data_channel, app_key,
-                           str(json_parser_resplogin["accountId"])),
-        headers={
-            'Token-Expiry': json_parser_resptoken["expiry"],
-            'Token': json_parser_resptoken["token"],
-            'Uvid': data_channel,
-            'Userid': str(json_parser_resplogin["accountId"])
-        })
+    data_url = URL_STREAM_LIVE % (data_channel, app_key, str(json_parser_resplogin["accountId"]))
+    headers = {
+        'Token-Expiry': json_parser_resptoken["expiry"],
+        'Token': json_parser_resptoken["token"],
+        'Uvid': data_channel,
+        'Userid': str(json_parser_resplogin["accountId"]),
+        "User-Agent": web_utils.get_random_ua()
+    }
+    respstreamdatas = session_requests.post(data_url, headers=headers, max_age=-1)
     json_parser = json.loads(respstreamdatas.text)
 
-    item = Listitem()
-    item.path = json_parser["response"]["drm"]["widevine"]["stream"]
-    item.label = get_selected_item_label()
-    item.art.update(get_selected_item_art())
-    item.info.update(get_selected_item_info())
-    item.property[INPUTSTREAM_PROP] = 'inputstream.adaptive'
-    item.property['inputstream.adaptive.manifest_type'] = 'mpd'
-    item.property['inputstream.adaptive.license_type'] = 'com.widevine.alpha'
-    item.property[
-        'inputstream.adaptive.license_key'] = json_parser["response"]["drm"]["widevine"]["licenseAcquisitionUrl"] + '|Content-Type=&User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3041.0 Safari/537.36|R{SSM}|'
+    headers = {'Content-type': ''}
+    video_url = json_parser["response"]["drm"]["widevine"]["stream"]
+    license_url = json_parser["response"]["drm"]["widevine"]["licenseAcquisitionUrl"]
 
-    return item
+    return resolver_proxy.get_stream_with_quality(plugin, video_url=video_url, license_url=license_url,
+                                                  headers=headers, manifest_type='mpd')
