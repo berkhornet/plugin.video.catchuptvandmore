@@ -84,8 +84,8 @@ RESOURCE_IMAGES   = os.path.join(ADDONS,   'resource.images.catchuptvandmore')
 RESOURCES         = os.path.join(RESOURCE_IMAGES,   'resources')
 CHANNELS          = os.path.join(RESOURCES,         'channels')
 UK_CHANNELS       = os.path.join(CHANNELS,          'uk')
-fanartpath        = os.path.join(UK_CHANNELS,       'uktvplay_fanart.jpg')
-iconpath          = os.path.join(UK_CHANNELS,       'uktvplay.png')
+fanartpath        = os.path.join(UK_CHANNELS,       'u_fanart.jpg')
+iconpath          = os.path.join(UK_CHANNELS,       'u.png')
 
 @Route.register
 def list_categories(plugin, item_id, **kwargs):
