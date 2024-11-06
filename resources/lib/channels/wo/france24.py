@@ -314,6 +314,6 @@ def get_live_url(plugin, item_id, **kwargs):
     language = kwargs.get('language', LANG)
 
     root = urlquick.get(URL_LIVE % (language, live_translation[language]), headers=GENERIC_HEADERS, max_age=-1)
-    video_id = root.parse('video-player').get('video-id')
+    video_id = root.parse('youtube-player').get('video-id')
 
     return resolver_proxy.get_stream_youtube(plugin, video_id)

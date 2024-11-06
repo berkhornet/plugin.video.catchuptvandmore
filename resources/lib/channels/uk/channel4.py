@@ -95,7 +95,7 @@ def list_seasons(plugin, url, **kwargs):
         script_text = script.text
         if script_text is not None and script_text.split()[0] == 'window.__PARAMS__':
             datas = json.loads(re.sub(r'^.*?{', '{', script_text).replace("undefined", "{}"))['initialData']['brand']
-            if bool(datas['allSeriesCount']) is False:
+            if bool(datas['allSeriesCount']) is False or len(datas['series']) == 0:
                 for episode in datas['episodes']:
                     if episode.get('assetId'):
                         item = Listitem()
