@@ -87,8 +87,8 @@ def list_emissions(plugin, item_id, category_url, page, **kwargs):
 
     for video_datas in data.iterfind(".//a[@class='emission-item-wrapper']"):
         item = Listitem()
-        item.label = video_datas.find(".//div[@class='field field-type-text']").text
-        video_image = video_datas.find('.//img').get('data-echo')
+        item.label = video_datas.find(".//div[@class='emission-name']").text
+        video_image = video_datas.find('.//img').get('data-src')
         video_url = URL_ROOT_SITE + video_datas.get('href')
         item.art['thumb'] = item.art['landscape'] = video_image
 
@@ -99,15 +99,15 @@ def list_emissions(plugin, item_id, category_url, page, **kwargs):
 
 @Route.register
 def list_emissions_old(plugin, item_id, category_url, page, **kwargs):
-    resp = urlquick.get(category_url % page, header=GENERIC_HEADERS, max_age=-1)
+    resp = urlquick.get(category_url % page, headers=GENERIC_HEADERS, max_age=-1)
     parser = htmlement.HTMLement()
     parser.feed(resp.json())
     data = parser.close()
 
     for video_datas in data.iterfind(".//a[@class='emission-item-wrapper']"):
         item = Listitem()
-        item.label = video_datas.find(".//div[@class='field field-type-text']").text
-        video_image = video_datas.find('.//img').get('data-echo')
+        item.label = video_datas.find(".//div[@class='emission-name']").text
+        video_image = video_datas.find('.//img').get('data-src')
         video_url = URL_ROOT_SITE + video_datas.get('href')
         item.art['thumb'] = item.art['landscape'] = video_image
 
@@ -155,7 +155,6 @@ def list_videos_emission(plugin, item_id, video_url, **kwargs):
 def get_video_url(plugin, item_id, video_url, download_mode=False, **kwargs):
     root = urlquick.get(video_url, headers=GENERIC_HEADERS, verify=False, max_age=-1).parse()
     video_id = root.find(".//div[@id='embed-main-video']").get('data-videoid')
-    # video_id = re.compile(r'data-videoid\"\=\"(.*?)[\?\"]').findall(resp.text)[0]
 
     return resolver_proxy.get_stream_dailymotion(plugin, video_id, download_mode)
 

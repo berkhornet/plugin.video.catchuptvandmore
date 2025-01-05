@@ -161,7 +161,7 @@ menu = {
         'order': 13
     },
     'BFM TV': {
-        'resolver': '/resources/lib/channels/fr/rmcbfmplay:get_live_url',
+        'resolver': '/resources/lib/channels/fr/bfmtv:get_live_url',
         'label': 'BFM TV',
         'thumb': 'channels/fr/bfmtv.png',
         'fanart': 'channels/fr/bfmtv_fanart.jpg',
@@ -693,7 +693,7 @@ menu = {
         'order': 64
     },
     'BFM Business': {
-        'resolver': '/resources/lib/channels/fr/rmcbfmplay:get_live_url',
+        'resolver': '/resources/lib/channels/fr/bfmtv:get_live_url',
         'label': 'BFM Business',
         'thumb': 'channels/fr/bfmbusiness.png',
         'fanart': 'channels/fr/bfmbusiness_fanart.jpg',
@@ -702,6 +702,15 @@ menu = {
         'enabled': True,
         'order': 65
     },
+    'BFM2': {
+        'resolver': '/resources/lib/channels/fr/bfmtv:get_live_url',
+        'label': 'BFM2',
+        'thumb': 'channels/fr/bfm2.png',
+        'fanart': 'channels/fr/bfm2_fanart.jpg',
+        'm3u_group': 'Satellite/FAI',
+        'enabled': True,
+        'order': 66
+    },
     'bsmart': {
         'resolver': '/resources/lib/channels/fr/bsmart:get_live_url',
         'label': 'B Smart',
@@ -709,7 +718,7 @@ menu = {
         'fanart': 'channels/fr/bsmart_fanart.jpg',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 66
+        'order': 67
     },
     'TECH & CO': {
         'resolver': '/resources/lib/channels/fr/rmcbfmplay:get_live_url',
@@ -718,7 +727,7 @@ menu = {
         'fanart': 'channels/fr/01net_fanart.jpg',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 67
+        'order': 68
     },
     'kto': {
         'resolver': '/resources/lib/channels/fr/kto:get_live_url',
@@ -728,7 +737,7 @@ menu = {
         'xmltv_id': 'C110.api.telerama.fr',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 68
+        'order': 69
     },
     'europe1': {
         'resolver': '/resources/lib/channels/fr/europe1:get_live_url',
@@ -737,7 +746,7 @@ menu = {
         'fanart': 'channels/fr/europe1_fanart.jpg',
         'm3u_group': 'Radio',
         'enabled': True,
-        'order': 69
+        'order': 70
     },
     'franceinter': {
         'resolver': '/resources/lib/channels/fr/franceinter:get_live_url',
@@ -746,7 +755,7 @@ menu = {
         'fanart': 'channels/fr/franceinter_fanart.jpg',
         'm3u_group': 'Radio',
         'enabled': True,
-        'order': 70
+        'order': 71
     },
     'funradio': {
         'resolver': '/resources/lib/channels/fr/rtl:get_live_url',
@@ -755,7 +764,7 @@ menu = {
         'fanart': 'channels/fr/funradio_fanart.jpg',
         'm3u_group': 'Radio',
         'enabled': True,
-        'order': 71
+        'order': 72
     },
     'rtl': {
         'resolver': '/resources/lib/channels/fr/rtl:get_live_url',
@@ -764,7 +773,7 @@ menu = {
         'fanart': 'channels/fr/rtl_fanart.jpg',
         'm3u_group': 'Radio',
         'enabled': True,
-        'order': 72
+        'order': 73
     },
     'rtl2': {
         'resolver': '/resources/lib/channels/fr/rtl:get_live_url',
@@ -773,7 +782,7 @@ menu = {
         'fanart': 'channels/fr/rtl2_fanart.jpg',
         'm3u_group': 'Radio',
         'enabled': True,
-        'order': 73
+        'order': 74
     },
     'sudradio': {
         'resolver': '/resources/lib/channels/fr/sudradio:get_live_url',
@@ -782,7 +791,7 @@ menu = {
         'fanart': 'channels/fr/sudradio_fanart.jpg',
         'm3u_group': 'Radio',
         'enabled': True,
-        'order': 74
+        'order': 75
     },
     'sportenfrance': {
         'resolver': '/resources/lib/channels/fr/sportenfrance:get_live_url',
@@ -791,7 +800,7 @@ menu = {
         'fanart': 'channels/fr/sportenfrance_fanart.jpg',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 75
+        'order': 76
     },
     'lequipelive': {
         'route': '/resources/lib/channels/fr/lequipe:get_multi_live_url',
@@ -800,7 +809,7 @@ menu = {
         'fanart': 'channels/fr/lequipelive_fanart.png',
         'm3u_group': 'TNT',
         'enabled': True,
-        'order': 76
+        'order': 77
     },
     'equidia-live2': {
         'resolver': '/resources/lib/channels/fr/equidia:get_live_url',
@@ -810,7 +819,7 @@ menu = {
         'xmltv_id': 'C64.api.telerama.fr',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 77
+        'order': 78
     },
     'equidia-racingtrot': {
         'resolver': '/resources/lib/channels/fr/equidia:get_live_url',
@@ -819,7 +828,7 @@ menu = {
         'fanart': 'channels/fr/equidiaracingtrot_fanart.jpg',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 78
+        'order': 79
     },
     'equidia-racingmag': {
         'resolver': '/resources/lib/channels/fr/equidia:get_live_url',
@@ -828,7 +837,7 @@ menu = {
         'fanart': 'channels/fr/equidiaracingmag_fanart.jpg',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 79
+        'order': 80
     },
     'equidia-racinggalop': {
         'resolver': '/resources/lib/channels/fr/equidia:get_live_url',
@@ -837,7 +846,7 @@ menu = {
         'fanart': 'channels/fr/equidiaracinggalop_fanart.jpg',
         'm3u_group': 'Satellite/FAI',
         'enabled': True,
-        'order': 80
+        'order': 81
     },
     'equidia-racing': {
         'resolver': '/resources/lib/channels/fr/equidia:get_live_url',
@@ -856,7 +865,7 @@ menu = {
             "8": {},
         },
         'enabled': True,
-        'order': 81
+        'order': 82
     },
     'paris-h24': {
         'resolver': '/resources/lib/channels/fr/francetv:get_live_url',
@@ -864,7 +873,7 @@ menu = {
         'thumb': 'channels/fr/paris_h24.png',
         'fanart': 'channels/fr/paris_h24_fanart.jpg',
         'enabled': True,
-        'order': 82
+        'order': 83
     }
 }
 

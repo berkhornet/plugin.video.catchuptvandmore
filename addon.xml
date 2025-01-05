@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.catchuptvandmore" name="Catch-up TV &amp; More" version="0.2.40~beta14" provider-name="SylvainCecchetto,wwark,joaopa">
+<addon id="plugin.video.catchuptvandmore" name="Catch-up TV &amp; More" version="0.2.40~beta19" provider-name="SylvainCecchetto,wwark,joaopa">
   <requires>
     <!-- xbmc.python -->
     <import addon="script.module.codequick" version="0.9.13"/>
@@ -126,6 +126,21 @@
 [WO - FRANCE24] Fix live (issue #1417)
 [WO - TV5MONDE] Fix error 403 (PR #1422) thanks @jeff2900
 [FR - 6PLAY] Fix error 404 (PR #1421 issue ##1420) thanks @jeff2900
+[FR - FRANCE3REGIONS] FIx live (issue #1424)
+[FR - FRANCE3REGIONS] Fix replay (PR #1425) thanks @jeff2900
+[FR - RFMBMCPLAY] Remove problematic workaround (issue #1431)
+[FR - BFM2] Add live
+[FR - BFM] Add fallback for BFMs live
+[MA - M24] Fix live
+[BE - RTBF] Update search API version 1.20 to 1.23 (PR #1438 issue #1414) thanks @xaviermiller
+[FR - CNEWS] Fix replay (issue #1443)
+[MA - SNRT] Fix live
+[FR - FRANCE3REGIONS] Fix missing replay (PR #1444) thanks @jeff2900
+[PROJECT] Update User-Agent (issue #1445) thanks @jeff2900
+[MA - MEDI1] Fix live
+[FR - CNEWS] Fix a typo
+[MA - TELEMAROC] Fix live
+|FR - CNEWS] Workaround for old certificates (PR #1447 issue #1450) thanks @jeff2900
 ----
 Visit WebSite - http://mpdb.tv/#home which host the french forum used by users of CU TV and More
     </news>

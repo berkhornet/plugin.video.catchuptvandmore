@@ -338,9 +338,7 @@ def playpodcast(plugin, path, title, **kwargs):
     return item
 
 
-@Resolver.register
-def get_live_url(plugin, item_id, **kwargs):
-
+def bfm_player(plugin, item_id, **kwargs):
     headers = {
         'User-Agent': web_utils.get_random_windows_ua(),
         'Content-type': 'application/json',
@@ -365,10 +363,7 @@ def get_live_url(plugin, item_id, **kwargs):
         if data["name"] == temp_id:
             for stream in data["streams"]:
                 if stream["drm"] == "WIDEVINE":
-
-                    # Workaround for IA bug : https://github.com/xbmc/inputstream.adaptive/issues/804
-                    response = urlquick.get(stream["url"], headers=GENERIC_HEADERS, max_age=-1)
-                    video_url = re.search('<Location>([^<]+)</Location>', response.text).group(1).replace(';', '&')
+                    video_url = stream["url"]
                     customdata = CUSTOMDATALIVE.format(web_utils.get_random_windows_ua(), token, "undefined")
                     headers = {
                         'User-Agent': web_utils.get_random_windows_ua(),
@@ -377,3 +372,8 @@ def get_live_url(plugin, item_id, **kwargs):
                         'Content-Type': ''
                     }
                     return resolver_proxy.get_stream_with_quality(plugin, video_url=video_url, license_url=LICENSE_URL, manifest_type='mpd', headers=headers)
+
+
+@Resolver.register
+def get_live_url(plugin, item_id, **kwargs):
+    return bfm_player(plugin, item_id, **kwargs)

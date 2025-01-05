@@ -579,12 +579,11 @@ def get_francetv_live_stream(plugin, broadcast_id):
     }
     video_url = urlquick.get(url_token, params=params, headers=GENERIC_HEADERS, max_age=-1).json()['url']
     if 'hls' in video_datas['format']:
-        return video_url + '|User-Agent=' + web_utils.get_random_windows_ua()
-    if 'dash' in video_datas['format']:
-        return get_stream_with_quality(plugin, video_url, manifest_type='mpd', license_url=URL_LICENSE_FRANCETV)
+        manifest = 'hls'
+    else:
+        manifest = 'mpd'
 
-    # Return info the format is not known
-    return False
+    return get_stream_with_quality(plugin, video_url, manifest_type=manifest, license_url=URL_LICENSE_FRANCETV)
 
 
 # Arte Part
