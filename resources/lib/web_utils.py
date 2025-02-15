@@ -95,6 +95,12 @@ def get_random_windows_ua():
     return windows_user_agents[randint(0, len(windows_user_agents) - 1)]
 
 
+def get_fixed_ua():
+    for ua in windows_user_agents:
+        if 'Firefox' in ua:
+            return ua
+
+
 # code adapted from weather.weatherbit.io - Thanks Ronie
 def geoip():
     """Get country code based on IP address

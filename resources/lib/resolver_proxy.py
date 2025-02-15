@@ -547,6 +547,8 @@ def get_francetv_video_stream(plugin,
             license_key = '|'.join(license_config.values())
         else:
             final_video_url = urlquick.get(url_token, params=params, headers=GENERIC_HEADERS, max_age=-1).json()['url']
+            if download_mode:
+                return download.download_video(final_video_url)
 
         return get_stream_with_quality(plugin,
                                        video_url=final_video_url,
@@ -592,7 +594,7 @@ def get_arte_video_stream(plugin,
                           video_id,
                           download_mode=False):
     url = URL_REPLAY_ARTE % (desired_language, video_id)
-    j = urlquick.get(url).json()
+    j = urlquick.get(url, headers=GENERIC_HEADERS, max_age=-1).json()
 
     language = []
     for stream in j['data']['attributes']['streams']:

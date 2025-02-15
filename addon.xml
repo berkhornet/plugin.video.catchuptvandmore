@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.catchuptvandmore" name="Catch-up TV &amp; More" version="0.2.40~beta19" provider-name="SylvainCecchetto,wwark,joaopa">
+<addon id="plugin.video.catchuptvandmore" name="Catch-up TV &amp; More" version="0.2.41~beta00" provider-name="SylvainCecchetto,wwark,joaopa">
   <requires>
     <!-- xbmc.python -->
     <import addon="script.module.codequick" version="0.9.13"/>
@@ -141,6 +141,13 @@
 [FR - CNEWS] Fix a typo
 [MA - TELEMAROC] Fix live
 |FR - CNEWS] Workaround for old certificates (PR #1447 issue #1450) thanks @jeff2900
+[PROJECT] Allow download for non-drmed mpd file in FRANCETV resolver
+[PROJECT] Add generic headers for ARTE resolver
+[WO - FRANCE24] Fix picky headers (PR #1458 issue 1451) thanks @jeff2900
+[FR - FRANCETV] Fix live (PR #1460 issue 1460) thanks @jeff2900
+[FR - CNEWS] Fix Error 403 (PR #1457 issue 1456) thanks @jeff2900
+[FR - FRANCETV] Fix live (PR #1462) thanks @jeff2900
+[FR - CNEWS] Fix live for old certificates
 ----
 Visit WebSite - http://mpdb.tv/#home which host the french forum used by users of CU TV and More
     </news>
