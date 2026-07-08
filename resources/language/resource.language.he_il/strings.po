@@ -611,12 +611,12 @@ msgid "SFR TV password"
 msgstr ""
 
 msgctxt "#30264"
-msgid "Channel 4 Login"
-msgstr ""
+msgid "Log in to Channel 4"
+msgstr "התחבר ל-Channel4"
 
 msgctxt "#30265"
-msgid "Channel 4 Password"
-msgstr ""
+msgid "Log out of Channel 4"
+msgstr "התנתק מ-Channel4"
 
 # TV integration (from 30270 to 30289)
 
