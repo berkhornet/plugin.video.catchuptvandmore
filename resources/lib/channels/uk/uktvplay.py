@@ -13,6 +13,33 @@ from codequick import Listitem, Resolver, Route
 from kodi_six import xbmcgui
 import urlquick
 
+# UKTV-001: START use UKTVPlay artwork
+import os
+import xbmcvfs
+# UKTV-001: END use UKTVPlay artwork
+
+# UKTV-008: START debug message
+import xbmc
+debug = True
+def log_message(message, level=xbmc.LOGINFO):
+    """
+    Logs a message to the Kodi log file.
+    
+    :param message: The text to log
+    :param level: Kodi log level (default: LOGINFO)
+    """
+    try:
+        if not isinstance(message, str):
+            message = str(message)
+        xbmc.log(f"[U] {message}", level)
+    except Exception as e:
+        xbmc.log(f"[U] Logging failed: {e}", xbmc.LOGERROR)
+# UKTV-008: END debug message
+
+# UKTV-009: START Custom Main menu
+media_dir = xbmcvfs.translatePath('special://userdata/customisations/Addon Icons/VOD Addon Artwork/U/')
+# UKTV-009: END Custom Main menu
+
 from resources.lib import resolver_proxy, web_utils
 
 from resources.lib.menu_utils import item_post_treatment
@@ -64,14 +91,57 @@ URL_CHUNKS = "https://u.co.uk/shows/%s/series-%s/episode-%s/%s"
 
 GENERIC_HEADERS = {"User-Agent": web_utils.get_random_ua()}
 
+# UKTV-001: use UKTVPlay artwork
+HOME              = xbmcvfs.translatePath('special://home/')
+ADDONS            = os.path.join(HOME,     'addons')
+RESOURCE_IMAGES   = os.path.join(ADDONS,   'resource.images.catchuptvandmore')
+RESOURCES         = os.path.join(RESOURCE_IMAGES,   'resources')
+CHANNELS          = os.path.join(RESOURCES,         'channels')
+UK_CHANNELS       = os.path.join(CHANNELS,          'uk')
+fanartpath        = os.path.join(UK_CHANNELS,       'u_fanart.jpg')
+iconpath          = os.path.join(UK_CHANNELS,       'u.png')
+# END UKTV-001: use UKTVPlay artwork
 
-@Route.register
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="images")
+
+# UKTV-009: START Custom Main Menu
+# def list_categories(plugin, item_id, **kwargs):
+    #"""
+    #Build categories listing
+    #
+    #item = Listitem()
+    #item.label = 'A-Z'
+    #item.set_callback(list_letters, item_id=item_id)
+    #item_post_treatment(item)
+    #yield item
+    #
+    #resp = urlquick.get(URL_CATEGORIES, headers=GENERIC_HEADERS, max_age=-1)
+    #json_parser = json.loads(resp.text)
+    #
+    #for category_datas in json_parser["categories"]:
+    #    category_title = category_datas["name"]
+    #    category_slug = category_datas["slug"]
+    #    item = Listitem()
+    #    item.label = category_title
+    #    item.set_callback(list_sub_categories,
+    #                      item_id=item_id,
+    #                      category_slug=category_slug)
+    #    item_post_treatment(item)
+    #    yield item
+
+
 def list_categories(plugin, item_id, **kwargs):
     """
     Build categories listing
     """
     item = Listitem()
     item.label = 'A-Z'
+    # UKTV-009: START Custom main menu 
+    item.art["thumb"] = media_dir + 'A - Z.png'
+    item.art["fanart"] = ''
+    # UKTV-009: END Custom main menu 
     item.set_callback(list_letters, item_id=item_id)
     item_post_treatment(item)
     yield item
@@ -84,14 +154,21 @@ def list_categories(plugin, item_id, **kwargs):
         category_slug = category_datas["slug"]
         item = Listitem()
         item.label = category_title
+        # UKTV-009: START Custom main menu        
+        item.art["thumb"] = media_dir + category_title + '.png'
+        item.art["fanart"] = ''
+        # UKTV-009: END Custom main menu 
         item.set_callback(list_sub_categories,
                           item_id=item_id,
                           category_slug=category_slug)
         item_post_treatment(item)
         yield item
+    # UKTV-009: END Custom Main Menu
 
 
-@Route.register
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="files")
 def list_sub_categories(plugin, item_id, category_slug, **kwargs):
 
     resp = urlquick.get(URL_CATEGORIES, headers=GENERIC_HEADERS, max_age=-1)
@@ -104,6 +181,10 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
                 sub_category_slug = sub_category_datas["slug"]
                 item = Listitem()
                 item.label = sub_category_title
+                # UKTV-001: use UKTVPlay artwork 
+                item.art["thumb"] = iconpath
+                item.art["fanart"] = ''
+                # END UKTV-001: use UKTVPlay artwork                  
                 item.set_callback(list_programs_sub_categories,
                                   item_id=item_id,
                                   sub_category_slug=sub_category_slug)
@@ -111,13 +192,19 @@ def list_sub_categories(plugin, item_id, category_slug, **kwargs):
                 yield item
 
 
-@Route.register
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_programs_sub_categories(plugin, item_id, sub_category_slug, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS_SUBCATEGORY % sub_category_slug, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
     for program_datas in json_parser["brand_list"]:
+        # UKTV-008: START debug
+        if debug == True:
+            log_message('list_programs_sub_categories: program_datas = ' + str(program_datas))
+        # UKTV-008: END debug        
         program_title = program_datas['name']
         program_image = ''
         if 'image' in program_datas:
@@ -126,15 +213,43 @@ def list_programs_sub_categories(plugin, item_id, sub_category_slug, **kwargs):
 
         item = Listitem()
         item.label = program_title
-        item.art['thumb'] = item.art['landscape'] = program_image
+        item.art['thumb'] = item.art['landscape'] = program_image       
+        # UKTV-002: use program_image as fanart
+        if 'hero_image_4k' in program_datas:
+            item.art['fanart'] = program_datas['hero_image_4k']        
+        else:
+            item.art['fanart'] = program_image
+        # END UKTV-002: use program_image as fanart        
+        # UKTV-004: START improve plot/descriptions
+        if 'medium_description' in program_datas:
+            item.info['plot'] = program_datas['medium_description']
+        elif 'description' in program_datas:
+            item.info['plot'] = program_datas['description']
+        else:
+            item.info['plot'] = program_title        
+        # UKTV-004: END improve plot/descriptions       
+
+        # UKTV-005: START Set up tvshow data
+        item.info['mediatype'] = 'tvshow'
+        item.info['tvshowtitle'] = program_title
+        item.info['title'] = program_title
+        # UKTV-005: END Set up tvshow data
+        
         item.set_callback(list_seasons,
+                          # UKTV-002: START add program_title, program_image and to parameters
+                          program_title=program_title,
+                          program_image=program_image,
+                          fanart=item.art['fanart'],
+                          # UKTV-002: END add program_title, program_image and to parameters
                           item_id=item_id,
                           program_slug=program_slug)
         item_post_treatment(item)
         yield item
 
 
-@Route.register
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="files")
 def list_letters(plugin, item_id, **kwargs):
     """
     Build programs listing
@@ -144,6 +259,10 @@ def list_letters(plugin, item_id, **kwargs):
     for letter_value in LETTER_LIST:
         item = Listitem()
         item.label = letter_value
+        # UKTV-001: use UKTVPlay artwork 
+        item.art["thumb"] = iconpath
+        item.art["fanart"] = ''
+        # END UKTV-001: use UKTVPlay artwork 
         item.set_callback(list_programs,
                           item_id=item_id,
                           letter_value=letter_value)
@@ -151,7 +270,9 @@ def list_letters(plugin, item_id, **kwargs):
         yield item
 
 
-@Route.register
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_programs(plugin, item_id, letter_value, **kwargs):
 
     resp = urlquick.get(URL_PROGRAMS %
@@ -160,6 +281,10 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
     json_parser = json.loads(resp.text)
 
     for program_datas in json_parser:
+        # UKTV-008: START debug
+        if debug == True:
+            log_message('list_programs: program_datas = ' + str(program_datas))
+        # UKTV-008: END debug           
         program_title = program_datas['name']
         program_image = ''
         if 'image' in program_datas:
@@ -169,37 +294,95 @@ def list_programs(plugin, item_id, letter_value, **kwargs):
         item = Listitem()
         item.label = program_title
         item.art['thumb'] = item.art['landscape'] = program_image
+        # UKTV-002: use program_image as fanart
+        if 'hero_image_4k' in program_datas:
+            item.art['fanart'] = program_datas['hero_image_4k']        
+        else:
+            item.art['fanart'] = program_image
+        # END UKTV-002: use program_image as fanart        
+        # UKTV-004: START improve plot/descriptions
+        if 'medium_description' in program_datas:
+            item.info['plot'] = program_datas['medium_description']
+        elif 'description' in program_datas:
+            item.info['plot'] = program_datas['description']
+        else:
+            item.info['plot'] = program_title        
+        # UKTV-004: END improve plot/descriptions
+        
+        # UKTV-005: START Set up tvshow data
+        item.info['mediatype'] = 'tvshow'
+        item.info['tvshowtitle'] = program_title
+        item.info['title'] = program_title
+        # UKTV-005: END Set up tvshow data
         item.set_callback(list_seasons,
+                          # UKTV-002: START add program_title, program_image and to parameters
+                          program_title=program_title,
+                          program_image=program_image,
+                          fanart=item.art['fanart'],
+                          # UKTV-002: END add program_title, program_image and to parameters
                           item_id=item_id,
                           program_slug=program_slug)
         item_post_treatment(item)
         yield item
 
 
-@Route.register
-def list_seasons(plugin, item_id, program_slug, **kwargs):
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="seasons")
+# UKTV-002: START add program_title, program_image and fanart to parameters
+# def list_seasons(plugin, item_id, program_slug, **kwargs):
+def list_seasons(plugin, program_title, program_image, fanart, item_id, program_slug, **kwargs):
+# UKTV-002: END add program_title, program_image and fanart to parameters
 
     resp = urlquick.get(URL_INFO_PROGRAM % program_slug, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
     for season_datas in json_parser["series"]:
+        # UKTV-008: START debug
+        if debug == True:
+            log_message('list_seasons: season_datas = ' + str(season_datas))
+        # UKTV-008: END debug 
+        
         season_title = 'Season - ' + season_datas['number']
         serie_id = season_datas["id"]
 
         item = Listitem()
         item.label = season_title
-        item.set_callback(list_videos, item_id=item_id, serie_id=serie_id)
+        
+        # UKTV-005: START Set up season data
+        item.info['season'] = season_datas['number']
+        item.info['mediatype'] = 'season'
+        item.info['tvshowtitle'] = program_title
+        item.info['title'] = season_title
+        # UKTV-005: END Set up season data     
+        
+        # UKTV-002: use Program Image artwork instead of CUTV&More artwork for seasons
+        item.art["landscape"] = program_image
+        item.art["fanart"] = fanart
+        # END UKTV-002: use Program Image artwork instead of CUTV&More artwork for seasons        
+        
+        # UKTV-002: use Program Image artwork instead of CUTV&More artwork for videos fanart      
+        # item.set_callback(list_videos, item_id=item_id, serie_id=serie_id)
+        item.set_callback(list_videos, item.art["fanart"], item_id=item_id, serie_id=serie_id)
+               
         item_post_treatment(item)
         yield item
 
 
-@Route.register
-def list_videos(plugin, item_id, serie_id, **kwargs):
+# UKTV-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="videos")
+# UKTV-002: use Program Image artwork instead of CUTV&More artwork for videos fanart
+# def list_videos(plugin, item_id, serie_id, **kwargs): 
 
     resp = urlquick.get(URL_VIDEOS % serie_id, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
     for video_datas in json_parser["episodes"]:
+        # UKTV-008: START debug
+        if debug == True:
+            log_message('list_videos: video_datas = ' + str(video_datas))
+        # UKTV-008: END debug         
         video_title = video_datas["brand_name"] + \
             ' - ' ' S%sE%s' % (video_datas["series_number"], str(video_datas["episode_number"])) + ' - ' + video_datas["name"]
         video_image = video_datas["image"]
@@ -215,6 +398,20 @@ def list_videos(plugin, item_id, serie_id, **kwargs):
         item = Listitem()
         item.label = video_title
         item.art['thumb'] = item.art['landscape'] = video_image
+        
+        # UKTV-002: START use Program Image artwork instead of CUTV&More artwork for videos fanart        
+        item.art["fanart"] = program_image
+        # UKTV-002: END use Program Image artwork instead of CUTV&More artwork for videos fanart        
+
+        # UKTV-005: START Set up episode data
+        if 'episode_number' in video_datas:
+            item.info['episode'] = video_datas['episode_number']
+            item.info['season'] = video_datas['series_number']
+            item.info['mediatype'] = 'episode'
+            item.info['tvshowtitle'] = video_datas['brand_name']
+            item.info['title'] = video_datas['name']
+        # UKTV-005: END Set up episode data
+        
         item.info['plot'] = video_plot
         item.info['duration'] = video_duration
         item.set_callback(get_video_url,
