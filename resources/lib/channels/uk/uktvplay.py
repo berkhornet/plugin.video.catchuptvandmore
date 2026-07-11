@@ -374,7 +374,8 @@ def list_seasons(plugin, program_title, program_image, fanart, item_id, program_
 @Route.register(content_type="videos")
 # UKTV-002: use Program Image artwork instead of CUTV&More artwork for videos fanart
 # def list_videos(plugin, item_id, serie_id, **kwargs): 
-
+def list_videos(plugin, program_image, item_id, serie_id, **kwargs): 
+    
     resp = urlquick.get(URL_VIDEOS % serie_id, headers=GENERIC_HEADERS, max_age=-1)
     json_parser = json.loads(resp.text)
 
