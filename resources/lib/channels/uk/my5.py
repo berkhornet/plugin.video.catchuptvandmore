@@ -30,6 +30,13 @@ from resources.lib.menu_utils import item_post_treatment
 from resources.lib.py_utils import datetime_strptime
 from resources.lib import web_utils, resolver_proxy, kodi_utils
 
+# MY5-001: import xbmvvfs, os
+import os
+import xbmcvfs
+import sys
+# END MY5-001: import xbmvvfs, os
+
+
 CORONA_URL = 'https://corona.channel5.com/'
 BASIS_URL = CORONA_URL + 'shows/%s/seasons'
 URL_SEASONS = BASIS_URL + '.json'
@@ -38,12 +45,51 @@ FEEDS_API = 'https://feeds-api.channel5.com/collections/%s/concise.json'
 URL_WATCHABLE = CORONA_URL + 'watchables/search.json'
 URL_SHOWS = CORONA_URL + 'shows/search.json'
 BASE_IMG = 'https://api-images.channel5.com/otis/images'
-IMG_URL = BASE_IMG + '/episode/%s/320x180.jpg'
-SHOW_IMG_URL = BASE_IMG + '/show/%s/320x180.jpg'
+
+# MY5-004: START Use images with Title (landscape) for Shows, increase image resolution
+#IMG_URL = BASE_IMG + '/episode/%s/320x180.jpg'
+IMG_URL = BASE_IMG + '/episode/%s/1280x720.jpg'
+# SHOW_IMG_URL = BASE_IMG + '/show/%s/320x180.jpg'
+SHOW_IMG_URL = BASE_IMG + '/show/%s/1280x720.jpg?master=imageWithTitle'
+# MY5-004: END Use images with Title (landscape) for Shows, increase image resolution
+
 ONEOFF = CORONA_URL + 'shows/%s/episodes/next.json'
 LIC_BASE = 'https://cassie.channel5.com/api/v2'
 LICC_URL = LIC_BASE + '/%s/my5desktopng/%s.json?timestamp=%s'
 KEYURL = "https://player.akamaized.net/html5player/core/html5-c5-player.js"
+
+# MY5-001: Customise My5 artwork - create constants
+HOME              = xbmcvfs.translatePath('special://home/')
+ADDONS            = os.path.join(HOME,     'addons')
+RESOURCE_IMAGES   = os.path.join(ADDONS,   'resource.images.catchuptvandmore')
+RESOURCES         = os.path.join(RESOURCE_IMAGES,   'resources')
+CHANNELS          = os.path.join(RESOURCES,         'channels')
+UK_CHANNELS       = os.path.join(CHANNELS,          'uk')
+fanartpath        = os.path.join(UK_CHANNELS,       '5_fanart.jpg')
+iconpath          = os.path.join(UK_CHANNELS,       '5.png')
+# END MY5-001: Customise My5 artwork - create constants
+
+# MY5-008: Start debug
+debug = True
+def log_message(message, level=xbmc.LOGINFO):
+    """
+    Logs a message to the Kodi log file.
+    
+    :param message: The text to log
+    :param level: Kodi log level (default: LOGINFO)
+    """
+    try:
+        if not isinstance(message, str):
+            message = str(message)
+        xbmc.log(f"[MY5] {message}", level)
+    except Exception as e:
+        xbmc.log(f"[MY5] Logging failed: {e}", xbmc.LOGERROR)    
+# MY5-008: END debug
+
+# MY5-009: START Custom Main menu
+import xbmcvfs
+media_dir = xbmcvfs.translatePath('special://userdata/customisations/Addon Icons/VOD Addon Artwork/Channel 5 v2/')
+# MY5-009: END Custom Main menu
 
 TXT_ENTER_UNAME = 30733
 TXT_ENTER_PASSW = 30734
@@ -171,23 +217,82 @@ def part2(iv, aesKey, rdata):
     return getUseful(dataToParse)
 
 
-@Route.register(autosort=False, content_type="videos")
+# MY5-009: START Custom Main Menu
+# @Route.register(autosort=False, content_type="videos")
+@Route.register(autosort=False, content_type="images")
 def list_main_page(plugin, **kwargs):
+    """
     yield Listitem.from_dict(
         list_submenu_my5,
-        'My 5'
+        'My 5',
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''}
     )
-    yield from list_hero_items(plugin)
+    # MY5-002: Remove hero items from main page 
+    # yield from list_hero_items(plugin)
+    
     yield Listitem.from_dict(
+        callback=list_collections,
+        label='Collections',
+        params={'browse_name': 'PLC_My5DesktopFASTHomePageSubNav'},
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''}
+    )
+    yield Listitem.from_dict(
+        callback=list_categories,
+        label='Categories',
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''}
+    )
+    # yield Listitem.search(do_search)
+    
+    yield Listitem.search(do_search,
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''}
+    )
+    """    
+        
+    # My List
+    li = Listitem.from_dict(list_my_list_shows, 'My List')
+    li.art["thumb"] = media_dir + 'My List.png'
+    li.art["fanart"] = ''   
+    yield li
+    
+    # Continue Watching
+    li = Listitem.from_dict(list_continue_watching, 'Continue Watching', params={'_cache_to_disc_': False})
+    li.art["thumb"] = media_dir + 'Continue Watching.png'
+    li.art["fanart"] = ''       
+    yield li
+    
+    # Categories
+    li = Listitem.from_dict(callback=list_categories, label='Categories')
+    li.art["thumb"] = media_dir + 'Categories.png'
+    li.art["fanart"] = ''       
+    yield li
+
+    # Collections
+    li = Listitem.from_dict(
         callback=list_collections,
         label='Collections',
         params={'browse_name': 'PLC_My5DesktopFASTHomePageSubNav'}
     )
-    yield Listitem.from_dict(
-        callback=list_categories,
-        label='Categories'
-    )
-    yield Listitem.search(do_search)
+    li.art["thumb"] = media_dir + 'Collections.png'
+    li.art["fanart"] = ''       
+    yield li
+    
+    # Recommendations
+    li = Listitem.from_dict(list_recommendations, 'Recommendations')
+    li.art["thumb"] = media_dir + 'Recommendations.png'
+    li.art["fanart"] = ''       
+    yield li
+
+    # Search
+    li = Listitem.search(do_search)
+    li.art["thumb"] = media_dir + 'Search.png'#
+    li.art["fanart"] = ''       
+    yield li
+
+# MY5-009: END Custom Main Menu
 
 
 def list_hero_items(plugin):
@@ -203,25 +308,36 @@ def list_hero_items(plugin):
         pass
 
 
-@Route.register(autosort=False, content_type="videos")
+# MY5-003: Customise viewtypes
+# @Route.register(autosort=False, content_type="videos")
+@Route.register(autosort=False, content_type="files")
 def list_submenu_my5(plugin, **kwargs):
     """List collections for which a user account is required."""
     yield Listitem.from_dict(
         list_my_list_shows,
-        'My List'
+        'My List',
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''}
     )
     yield Listitem.from_dict(
         list_continue_watching,
-        "Continue watching",
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        "Continue Watching",
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''},
         params={'_cache_to_disc_': False}
     )
     yield Listitem.from_dict(
         list_recommendations,
-        "We think you'll like..."
+        "We think you'll like...",
+        # MY5-001: display My5 artwork instead of CUTV artwork
+        art={'thumb': fanartpath, 'fanart': ''}
     )
 
 
-@Route.register
+# MY5-003: Customise viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_my_list_shows(plugin, **_):
     """List all items currently on channel5's MyList."""
     my_shows = request_user_collection('mylist', show_login_msg=True)
@@ -235,7 +351,9 @@ def list_my_list_shows(plugin, **_):
         yield parse_show(show)
 
 
-@Route.register
+# MY5-003: Customise viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_recommendations(plugin, **_):
     """List recommendations based on previously watched video's."""
     my_shows = request_user_collection('recommendations', show_login_msg=True)
@@ -246,9 +364,18 @@ def list_recommendations(plugin, **_):
         yield parse_show(show)
 
 
-@Route.register
+# MY5-003: Customise viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_continue_watching(_):
     watchables = request_user_collection('continuewatching', show_login_msg=True)
+    # MY5-005: START Prevent empty "Continue Watching" run time error
+    if not watchables:
+        log_message('CONTINUE WATCHING FOLDER EMPTY')        
+        yield False
+        return
+    # MY5-005: END Prevent empty "Continue Watching" run time error
+        
     for watchable in watchables:
         li = parse_watchable(watchable, from_episode_list=False)
         resume_point = watchable.get('resume_point')
@@ -259,18 +386,26 @@ def list_continue_watching(_):
                 'ResumeTime': str(resume_time),
                 'TotalTime': str(total_time)
             })
-            li.info['title'] = ''.join((watchable['sh_title'],
-                                        ' - [I]',
-                                        str(int((total_time - resume_time) / 60)),
-                                        ' mins left[/I]'))
+            # MY5-006: START remove xx mins left from title
+            # li.info['title'] = ''.join((watchable['sh_title'],
+                                        # ' - [I]',
+                                        # str(int((total_time - resume_time) / 60)),
+                                        # ' mins left[/I]'))
+            li.info['title'] = watchable ['sh_title'] 
+            # MY5-006: END remove xx mins left from title                                    
             # More accurate duration than the watchable parser provides.
             li.info['duration'] = total_time
         else:
-            li.info['title'] = watchable['sh_title'] + ' - [I]next episode[/I]'
+            # MY5-006: START remove ' - [I]next episode[/I]' from title
+            # li.info['title'] = watchable['sh_title'] + ' - [I]next episode[/I]'          
+            li.info['title'] = watchable ['sh_title'] 
+            # MY5-006: END remove ' - [I]next episode[/I]' from title            
         yield li
 
 
-@Route.register
+# MY5-003: Customise viewtypes
+# @Route.register
+@Route.register(autosort=False, content_type="files")
 def list_categories(plugin, **kwargs):
     plugin.add_sort_methods(*DFLT_SORT_METHODS)
     resp = urlquick.get(FEEDS_API % 'PLC_My5SubGenreBrowsePageSubNav', headers=GENERIC_HEADERS,
@@ -283,12 +418,18 @@ def list_categories(plugin, **kwargs):
             browse_name = category['id']
             item.set_callback(list_collections, browse_name=browse_name)
             item_post_treatment(item)
+            # MY5-001: display My5 artwork instead of CUTV artwork
+            item.art["thumb"] = fanartpath
+            item.art["fanart"] = ''
+            # END MY5-001: display My5 artwork instead of CUTV artwork          
             yield item
         except (ValueError, AttributeError):
             pass
 
 
-@Route.register(redirect_single_item=True, autosort=False, content_type="videos")
+# MY5-003: Customise viewtypes
+# @Route.register(redirect_single_item=True, autosort=False, content_type="videos")
+@Route.register(redirect_single_item=True, autosort=False, content_type="files")
 def list_collections(plugin, browse_name, **kwargs):
     """List the contents of a collection, category, or sub-collection.
 
@@ -346,6 +487,10 @@ def list_collections(plugin, browse_name, **kwargs):
                         continue
                     item.set_callback(list_collections, browse_name=browse_name)
                 item_post_treatment(item)
+                # MY5-001: display My5 artwork instead of CUTV artwork
+                item.art["thumb"] = fanartpath
+                item.art["fanart"] = ''
+                # END MY5-001: display My5 artwork instead of CUTV artwork                
                 yield item
         except (ValueError, AttributeError):
             pass
@@ -466,6 +611,12 @@ def parse_show(show_data):
         Listitem: codequick listitem
 
     """
+    
+    # MY5-008: START debug
+    if debug == True:
+        log_message('parse_show: show_data = ' + str(show_data))
+    # MY5-008: START debug
+    
     title = show_data['title']
     fname = show_data['f_name']
     show_id = show_data['id']
@@ -473,8 +624,19 @@ def parse_show(show_data):
     item = Listitem()
     item.label = title
     item.art['thumb'] = item.art['landscape'] = SHOW_IMG_URL % show_id
+    
+    # MY5-004: Use images with Title (landscape) for Shows
+    item.art['fanart'] = SHOW_IMG_URL % show_id
+    
     item.info['plot'] = show_data['s_desc']
     item.info['genre'] = show_data['genre']
+    
+    # MY5-007: START Set up tvshow data
+    item.info['mediatype'] = 'tvshow'
+    item.info['tvshowtitle'] = title
+    item.info['title'] = title
+    # MY5-007: END Set up tvshow data
+    
     if "standalone" in show_data:
         # The item is playable
         item.set_callback(get_video_url,
@@ -516,7 +678,9 @@ def search_watchables(plugin, ids):
         yield parse_watchable(watchable)
 
 
-@Route.register(redirect_single_item=True, autosort=False, content_type="videos")
+# MY5-003: Customise viewtypes
+# @Route.register(redirect_single_item=True, autosort=False, content_type="videos")
+@Route.register(redirect_single_item=True, autosort=False, content_type="seasons")
 def list_seasons(plugin, fname, pid, title, **kwargs):
     plugin.add_sort_methods(*DFLT_SORT_METHODS)
 
@@ -529,14 +693,29 @@ def list_seasons(plugin, fname, pid, title, **kwargs):
         season_number = season['seasonNumber']
         item.label = ' '.join((title, '- Season', season_number))
         item.art['thumb'] = item.art['landscape'] = SHOW_IMG_URL % pid
-        item.set_callback(list_episodes, fname=fname, season_number=season_number)
+        
+        # MY5-004: START Use images with Title (landscape) for Shows
+        item.art['fanart'] = season_fanart = SHOW_IMG_URL % pid
+        # item.set_callback(list_episodes, fname=fname, season_number=season_number)
+        item.set_callback(list_episodes, fname=fname, season_number=season_number, fanart=season_fanart)
+        # MY5-004: END Use images with Title (landscape) for Shows
+       
+        # MY5-007: START Set up season data
+        item.info['season'] = season_number
+        item.info['mediatype'] = 'season'
+        item.info['tvshowtitle'] = title
+        item.info['title'] = 'Season - ' + season_number
+        # MY5-007: END Set up season data
+        
         mylist_ctx_mnu(item, pid, fname)
         item_post_treatment(item)
         yield item
 
 
 @Route.register(autosort=False, content_type="episodes")
-def list_episodes(plugin, fname, season_number, **kwargs):
+# MY5-004: Use images with Title (landscape) for Shows
+# def list_episodes(plugin, fname, season_number, **kwargs):
+def list_episodes(plugin, fname, season_number, fanart, **kwargs):
     plugin.add_sort_methods(*(DFLT_SORT_METHODS + (xbmcplugin.SORT_METHOD_DURATION, )))
 
     resp = urlquick.get(URL_EPISODES % (fname, season_number), headers=GENERIC_HEADERS,
@@ -570,6 +749,12 @@ def parse_watchable(watchable, from_episode_list=False):
         Listitem: codequick listitem
 
     """
+    
+    # MY5-008: START debug
+    if debug == True:
+        log_message('parse_watchable: watchable = ' + str(watchable))
+    # MY5-008: END debug    
+    
     title = watchable['title']
     show_title = watchable['sh_title']
     season_nr = watchable.get('sea_num')
@@ -580,7 +765,17 @@ def parse_watchable(watchable, from_episode_list=False):
     title_line = None
 
     item = Listitem()
-    item.art['thumb'] = item.art['landscape'] = IMG_URL % watchable_id
+    
+    # MY5-004: START Use images with Title (landscape) for Continue Watching and similar; set fanart
+    # item.art['thumb'] = item.art['landscape'] = IMG_URL % watchable_id
+    show_id = watchable['sh_id']
+    if from_episode_list:
+        item.art['thumb'] = item.art['landscape'] = IMG_URL % watchable_id
+    else:    
+        item.art['thumb'] = item.art['landscape'] = SHOW_IMG_URL % show_id
+    item.art['fanart'] = IMG_URL % watchable_id
+    # MY5-004: END Use images with Title (landscape) for Continue Watching and similar; set fanart
+    
     if from_episode_list:
         item.label = title
     else:
@@ -594,15 +789,29 @@ def parse_watchable(watchable, from_episode_list=False):
                                    fname=watchable['sh_f_name'],
                                    pid=watchable['sh_id'],
                                    title=show_title)
-
-    item.info['plot'] = '\n'.join(txt for txt in (
-        title_line,
-        ' ' if title_line else None,
-        description,
-        ' ',
-        advice,
-        availability(watchable.get('vod_e'))
-    ) if txt)
+                                   
+    # MY5-007: START create custom plot
+    # item.info['plot'] = '\n'.join(txt for txt in (
+        # title_line,
+        # ' ' if title_line else None,
+        # description,
+        # ' ',
+        # advice,
+        # availability(watchable.get('vod_e'))
+    # ) if txt) 
+    item.info['plot'] = description
+    # MY5-007: END create custom plot
+ 
+    # MY5-007: START set up episode data
+    if 'ep_num' in watchable and 'sea_num' in watchable:
+        item.info['episode'] = watchable['ep_num']
+        item.info['season'] = season_nr
+        item.info['mediatype'] = 'episode'
+        item.info['tvshowtitle'] = show_title
+        item.info['title'] = title
+        item.info['plot'] = description      
+    # MY5-007: END set up episode data
+ 
     t = int(int(watchable['len']) // 1000)
     item.info['duration'] = t
     item.info['genre'] = watchable['genre']
