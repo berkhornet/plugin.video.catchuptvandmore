@@ -51,6 +51,7 @@ BASE_IMG = 'https://api-images.channel5.com/otis/images'
 IMG_URL = BASE_IMG + '/episode/%s/1280x720.jpg'
 # SHOW_IMG_URL = BASE_IMG + '/show/%s/320x180.jpg'
 SHOW_IMG_URL = BASE_IMG + '/show/%s/1280x720.jpg?master=imageWithTitle'
+SHOW_IMG_FANART_URL = BASE_IMG + '/show/%s/1280x720.jpg?'
 # MY5-004: END Use images with Title (landscape) for Shows, increase image resolution
 
 ONEOFF = CORONA_URL + 'shows/%s/episodes/next.json'
@@ -427,9 +428,7 @@ def list_categories(plugin, **kwargs):
             pass
 
 
-# MY5-003: Customise viewtypes
-# @Route.register(redirect_single_item=True, autosort=False, content_type="videos")
-@Route.register(redirect_single_item=True, autosort=False, content_type="files")
+@Route.register(redirect_single_item=True, autosort=False, content_type="videos")
 def list_collections(plugin, browse_name, **kwargs):
     """List the contents of a collection, category, or sub-collection.
 
@@ -625,8 +624,8 @@ def parse_show(show_data):
     item.label = title
     item.art['thumb'] = item.art['landscape'] = SHOW_IMG_URL % show_id
     
-    # MY5-004: Use images with Title (landscape) for Shows
-    item.art['fanart'] = SHOW_IMG_URL % show_id
+    # MY5-004: Use correct fanart image
+    item.art['fanart'] = SHOW_IMG_FANART_URL % show_id
     
     item.info['plot'] = show_data['s_desc']
     item.info['genre'] = show_data['genre']
