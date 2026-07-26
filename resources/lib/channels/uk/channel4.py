@@ -665,8 +665,30 @@ def list_my_four(plugin, list_type, **_):
         yield from list_slice(plugin, my_list_data)
     else:
         # Just show an empty list - workaround to codequick reporting all empty lists as a failure to Kodi.
-        xbmcplugin.endOfDirectory(dispatcher.handle, True)
-        sys.exit()
+        # CH4-012: START Custom Empty List Handling
+        # xbmcplugin.endOfDirectory(dispatcher.handle, True)
+        # sys.exit()
+        my4_list_type = 'Unknown'
+        
+        if list_type == 'MYLIST':
+            my4_list_type = 'Watchlist'
+        elif list_type == 'CONTINUE_WATCHING':
+            my4_list_type = 'Continue Watching'
+
+        window_id = xbmcgui.getCurrentWindowId()
+        if window_id in (10000, 11101, 11102, 11103, 11104):
+            # Home page widget - simple empty list that displays nothing
+            xbmcplugin.endOfDirectory(dispatcher.handle, True)
+            sys.exit()
+        else:            
+            # Within the addon - display a fake empty directory
+            item = Listitem()
+            item.label = my4_list_type + ': Empty List'
+            item.info['mediatype'] = 'image' # prevents AF3 Info_line display         
+            item.art["thumb"] = fanartpath
+            item.art["fanart"] = ''
+            yield item
+        # CH4-012: END Custom Empty List Handling
 
 
 def get_slice_item_plot(slice_item):
