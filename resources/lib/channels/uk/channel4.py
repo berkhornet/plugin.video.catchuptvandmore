@@ -30,6 +30,10 @@ from resources.lib.py_utils import datetime_strptime
 
 from resources.lib import web_utils
 
+# CH4-011: START import custom modules
+from .ukcustom import get_first_english_backdrop
+# CH4-011: END import custom modules
+
 try:
     from Crypto.Cipher import AES
 except ImportError:
@@ -40,6 +44,42 @@ try:
 except ImportError:
     from Cryptodome.Util.Padding import unpad
 
+# CH4-001: START Customise Channel4 artwork - create constants
+import os
+import xbmcvfs
+
+HOME              = xbmcvfs.translatePath('special://home/')
+ADDONS            = os.path.join(HOME,     'addons')
+RESOURCE_IMAGES   = os.path.join(ADDONS,   'resource.images.catchuptvandmore')
+RESOURCES         = os.path.join(RESOURCE_IMAGES,   'resources')
+CHANNELS          = os.path.join(RESOURCES,         'channels')
+UK_CHANNELS       = os.path.join(CHANNELS,          'uk')
+fanartpath        = os.path.join(UK_CHANNELS,       'ch4_fanart.png')
+iconpath          = os.path.join(UK_CHANNELS,       'ch4.png')
+# CH4-001: END Customise Channel4 artwork - create constants   
+
+# CH4-008: START debug message
+import xbmc
+debug = True
+def log_message(message, level=xbmc.LOGINFO):
+    """
+    Logs a message to the Kodi log file.
+    
+    :param message: The text to log
+    :param level: Kodi log level (default: LOGINFO)
+    """
+    try:
+        if not isinstance(message, str):
+            message = str(message)
+        xbmc.log(f"[CH4] {message}", level)
+    except Exception as e:
+        xbmc.log(f"[CH4] Logging failed: {e}", xbmc.LOGERROR)
+# CH4-008: END debug message
+
+# CH4-009: START Custom Main menu
+media_dir = xbmcvfs.translatePath('special://userdata/customisations/Addon Icons/VOD Addon Artwork/Channel 4 v2/')
+# CH4-009: END Custom Main menu 
+  
 CACHE_FILE = 'special://userdata/addon_data/plugin.video.catchuptvandmore/channel4_auth.json'
 URL_ROOT = 'https://www.channel4.com'
 AUTH_ENV = 'https://api.channel4.com'
@@ -463,8 +503,12 @@ def do_search(plugin, search_query):
             yield item
 
 
-@Route.register
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="images")
 def main_menu(plugin, **kwargs):
+    # CH4-009: START Custom main menu    
+    """    
     yield Listitem.from_dict(
         callback=submenu_my4,
         label='My4'
@@ -511,6 +555,74 @@ def main_menu(plugin, **kwargs):
                             yield item
     except Exception:
         pass
+    """
+    # Watchlist
+    li = Listitem.from_dict(
+        callback=list_my_four,
+        label='Watchlist',
+        params={'list_type': 'MYLIST'}
+    )
+    li.art["thumb"] = media_dir + 'My List.png'
+    li.art["fanart"] = ''       
+    li_watchlist = li    
+
+    # Continue Watching
+    li = Listitem.from_dict(
+        callback=list_my_four,
+        label='Continue Watching',
+        params={'list_type': 'CONTINUE_WATCHING', '_cache_to_disc_': False}
+    )
+    li.art["thumb"] = media_dir + 'Continue Watching.png'
+    li.art["fanart"] = ''       
+    li_continue_watching = li    
+
+    # Categories
+    li = Listitem.from_dict(callback=list_categories, label='Categories')
+    li.art["thumb"] = media_dir + 'Categories.png'
+    li.art["fanart"] = ''       
+    li_categories = li
+
+    try:
+        json_data = json.loads(requests.get(URL_API_HOMEPAGE, headers=BASIC_HEADERS).text)
+        for slice in json_data['slices']:
+            if slice:
+                label = slice.get('title')
+                # New & Trending
+                if label == 'New & Trending':
+                    li = Listitem.from_dict(callback=list_slice, label=label, params={'slice': slice})
+                    li.label = 'Trending'
+                    li.art["thumb"] = media_dir + 'Trending.png'
+                    li.art["fanart"] = '' 
+                    li_trending = li
+                # Most Popular
+                if label == 'Most Popular':
+                    li = Listitem.from_dict(callback=list_slice, label=label, params={'slice': slice})
+                    li.art["thumb"] = media_dir + 'Most Popular.png'
+                    li.art["fanart"] = '' 
+                    li_most_popular = li
+                # The category is... (Collections)
+                if label == 'The category is...':
+                    li = Listitem.from_dict(callback=list_slice, label=label, params={'slice': slice})
+                    li.label = 'Collections'
+                    li.art["thumb"] = media_dir + 'Collections.png'
+                    li.art["fanart"] = '' 
+                    li_collections = li                        
+    except Exception:
+        pass
+    
+    # Search
+    li_search = Listitem.search(do_search)
+    li_search.art["thumb"] = media_dir + 'Search.png'
+    li_search.art["fanart"] = ''      
+    
+    yield li_watchlist
+    yield li_continue_watching     
+    yield li_categories
+    yield li_collections        
+    yield li_trending 
+    yield li_most_popular   
+    yield li_search
+    # CH4-009: END Custom main menu   
 
 
 @Route.register
@@ -537,7 +649,9 @@ def submenu_my4(_):
     )
 
 
-@Route.register
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_my_four(plugin, list_type, **_):
     plugin.add_sort_methods(xbmcplugin.SORT_METHOD_UNSORTED)
     my_list_data = get_my_four(list_type)
@@ -550,8 +664,34 @@ def list_my_four(plugin, list_type, **_):
         yield from list_slice(plugin, my_list_data, list_type)
     else:
         # Just show an empty list - workaround to codequick reporting all empty lists as a failure to Kodi.
-        xbmcplugin.endOfDirectory(dispatcher.handle, True)
-        sys.exit()
+        # CH4-012: START Custom Empty List Handling
+        # xbmcplugin.endOfDirectory(dispatcher.handle, True)
+        # sys.exit()
+        my4_list_type = 'Unknown'
+        
+        if list_type == 'MYLIST':
+            my4_list_type = 'Watchlist'
+        elif list_type == 'CONTINUE_WATCHING':
+            my4_list_type = 'Continue Watching'
+
+        window_id = xbmcgui.getCurrentWindowId()
+        if window_id in (10000, 11101, 11102, 11103, 11104):
+            # Home page widget - simple empty list that displays nothing
+            xbmcplugin.endOfDirectory(dispatcher.handle, True)
+            sys.exit()
+        else:            
+            # Within the addon - display a fake empty directory
+            item = Listitem()
+            item.label = my4_list_type
+            item.info['title'] = 'Empty List'
+            item.info['tvshowtitle'] = my4_list_type
+            item.info['plot'] = 'Your Channel 4 ' +  my4_list_type + ' list is empty.'
+            item.info['duration'] = None
+            item.info['mediatype'] = 'image' # prevents AF3 Info_line display         
+            item.art["thumb"] = fanartpath
+            item.art["fanart"] = ''
+            yield item
+        # CH4-012: END Custom Empty List Handling
 
 
 def get_slice_item_plot(slice_item):
@@ -569,6 +709,17 @@ def get_brand_fan_art(slice_item):
             if image.get('imageType') == 'PRIMARY_HERO' or 'Apple_TV' in image.get('title'):
                 return image.get('href')
     return None
+
+
+# CH4-011: START extract brand artwork with logo
+def get_brand_art_with_logo(slice_item):
+    images = slice_item.get('brand', {}).get('images', [])
+    if images:
+        for image in images:
+            if image.get('imageType') == 'PRIMARY_HERO' or 'Apple_TV' in image.get('title'):
+                return image.get('href')
+    return None
+# CH4-011: END extract brand artwork with logo
 
 
 def get_media_type(programme_type):
@@ -597,13 +748,21 @@ def parse_api_item_episode(episode_item, parent_list=None):
     """
     item = Listitem()
     episode_data = episode_item['episode']
+    # CH4-008: START Debug
+    if debug == True:
+        log_message('parse_api_item_episode; episode_item = ' + str(episode_item)) 
+        log_message('parse_api_item_episode; episode_data = ' + str(episode_data))
+    # CH4-008: END Debug     
     try:
         stream_info = episode_data['assetInfo']['streaming']
     except KeyError:
         # The item is no longer available.
         return None
     brand_data = episode_item['brand']
-
+    # CH4-008: START Debug
+    if debug == True:
+        log_message('parse_api_item_episode; brand_data = ' + str(brand_data))
+    # CH4-008: END Debug
     item.label = brand_title = episode_item['title']
     episode_title = episode_data['originalTitle'] or episode_data['title']
     seriesnr = episode_data.get('seriesNumber')
@@ -624,7 +783,8 @@ def parse_api_item_episode(episode_item, parent_list=None):
         else:
             resume_point = resume_data['seconds']
             minutes_left = str(int((duration - resume_point) / 60))
-            item.info['title'] = f'{brand_title} - [I]{minutes_left} mins left[/I]'
+            # CH4-007: remove extraneous information from title
+            # item.info['title'] = f'{brand_title} - [I]{minutes_left} mins left[/I]'
             item.property.update({
                 'ResumeTime': str(resume_point),
                 'TotalTime': str(duration)
@@ -641,7 +801,13 @@ def parse_api_item_episode(episode_item, parent_list=None):
             title_addition = None
         if title_addition:
             item.info['title'] = f'{brand_title} - [I]{title_addition}[/I]'
-
+    # CH4-007: START Set correct episode title 
+    if episode_data['originalTitle'] != episode_item['title']:
+        item.info['title'] = episode_data['originalTitle']
+    else:
+        item.info['title'] = episode_data['title']          
+    item.info['tvshowtitle'] = episode_item['title']   
+    # CH4-007: END Set correct episode title
     item.info['season'] = seriesnr
     item.info['episode'] = episodenr
     item.info['mediatype'] = get_media_type(brand_data.get('programmeType'))
@@ -650,11 +816,21 @@ def parse_api_item_episode(episode_item, parent_list=None):
     item.art['fanart'] = brand_data['image']['href']
     item.set_callback(get_video, programmeId=programme_id, assetId=stream_info['assetId'])
 
-    item.info['plot'] = episode_title + '\n\n' + episode_data['summary']
+    # CH4-007: START customise plot
+    # item.info['plot'] = episode_title + '\n\n' + episode_data['summary']
+    item.info['plot'] = episode_data['summary']
     guidance = stream_info.get('guidance')
-    if guidance:
-        item.info['plot'] = item.info['plot'] + '\n\n' + guidance
-
+    # if guidance:
+        # item.info['plot'] = item.info['plot'] + '\n\n' + guidance
+    # CH4-007: END customise plot
+    # CH4-011: START Landscape artwork from TMDb for Continue Watching
+    log_message('parse_api_item_episode: title = ' + str(episode_item['title']))
+    image_with_logo = get_first_english_backdrop(episode_item['title'])
+    if image_with_logo != None:
+        log_message('parse_api_item_episode: image_with_logo = ' + image_with_logo)
+        item.art['thumb'] = item.art['landscape'] = image_with_logo    
+    # CH4-011: END Landscape artwork from TMDb for Continue Watching  
+    
     date = episode_data.get('firstTXDate') or stream_info['startDate']
     item.info.date(date[:10], '%Y-%m-%d')
     item.info['genre'] = brand_data['categories']
@@ -670,7 +846,9 @@ def parse_api_item_episode(episode_item, parent_list=None):
     return item
 
 
-@Route.register
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="files")
 def list_categories(plugin, **kwargs):
     html_text = urlquick.get(URL_CATEGORIES,
                              headers=BASIC_HEADERS,
@@ -689,13 +867,23 @@ def list_categories(plugin, **kwargs):
                         item.label = category_link.get('tagName')
                         url_item = URL_ROOT + category_link.get('href')
                         item.set_callback(list_programs, url=url_item, offset='0')
+                        # CH4-001: display CH4 artwork instead of CUTV artwork
+                        item.art["thumb"] = fanartpath
+                        item.art["fanart"] = ''
+                        # END CH4-001: display CH4 artwork instead of CUTV artwork                           
                         item_post_treatment(item)
                         yield item
 
 
-@Route.register
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_slice(plugin, slice, list_type=None, **kwargs):
     for slice_item in slice['sliceItems']:
+        # CH4-008: START debug
+        if debug == True:
+            log_message('list_slice: slice_item = ' + str(slice_item))
+        # CH4-008: END debug           
         slice_item_type = slice_item.get('type')
 
         if slice_item_type == 'ip':
@@ -707,18 +895,46 @@ def list_slice(plugin, slice, list_type=None, **kwargs):
 
         item = Listitem()
 
+        # CH4-007: START fanart to default of null                   
+        item.art['fanart'] = ''
+        # CH4-007: END fanart to default of null    
+        
         if slice_item_type != 'slot':
             item.label = slice_item.get('title')
-            item.info['plot'] = get_slice_item_plot(slice_item)
+            # CH4-007: START Customise Watchlist Plot
+            # item.info['plot'] = get_slice_item_plot(slice_item)
+            if slice_item_type != 'freeform':
+                if slice_item['brand']['summary']:
+                    item.info['plot'] = slice_item['brand']['summary']
+                else:
+                    item.info['plot'] = get_slice_item_plot(slice_item)
+            # CH4-007: END Customise Watchlist Plot
+            item.art['thumb'] = item.art['landscape'
             item.art['thumb'] = item.art['landscape'] = slice_item["image"]["href"]
 
         if slice_item_type == 'brand':
             item.info['genre'] = slice_item.get('brand', {}).get('categories', [])
-            item.art['fanart'] = get_brand_fan_art(slice_item)
+            # CH4-007: START Get fanart for Watchlist            
+            # item.art['fanart'] = get_brand_fan_art(slice_item)
+            if slice_item['brand']['image']['href']:
+                item.art['fanart'] = slice_item['brand']['image']['href'].replace('{&resize}', '&resize=512px:*')
+            elif slice_item['image']['href']:
+                item.art['fanart'] = slice_item['image']['href'].replace('{&resize}', '&resize=512px:*')              
+            # CH4-007: END Get fanart for Watchlist
             safe_title = slice_item['brand']['websafeTitle']
             url_item = URL_PROGRAMMES + '/' + safe_title
             item.set_callback(list_seasons, url=url_item)
             add_my_list_context_menu(item, safe_title)
+            # CH4-011: START Landscape artwork from TMDb for My List
+            # log_message('list_slice: title = ' + str(slice_item.get('title'))
+            # try and obtain image with logo from slice_item
+            image_with_logo = get_brand_art_with_logo(slice_item)
+            if image_with_logo == None:
+                image_with_logo = get_first_english_backdrop(slice_item.get('title'))
+            if image_with_logo != None:
+                log_message('list_slice: image_with_logo = ' + image_with_logo)
+                item.art['thumb'] = item.art['landscape'] = image_with_logo    
+            # CH4-011: END Landscape artwork from TMDb for My List             
         elif slice_item_type == 'freeform':
             url_item = slice_item.get('url')
             if not url_item:
@@ -732,7 +948,9 @@ def list_slice(plugin, slice, list_type=None, **kwargs):
         yield item
 
 
-@Route.register
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="videos")
 def list_programs(plugin, url, offset, **kwargs):
     """
     Build programs listing
@@ -751,9 +969,18 @@ def list_programs(plugin, url, offset, **kwargs):
     programs_number = programs['noOfShows']
 
     for program in programs["brands"]["items"]:
+        # CH4-008: START debug
+        if debug == True:
+            log_message('list_programs: program = ' + str(program))
+        # CH4-008: END debug            
         item = Listitem()
         item.label = program["labelText"]
         item.art['thumb'] = item.art['landscape'] = item.art['fanart'] = program["imageLink"]
+        # CH4-007: START Set up tvshow data
+        item.info['mediatype'] = 'tvshow'
+        item.info['tvshowtitle'] = program["labelText"]
+        item.info['title'] = program["labelText"]
+        # CH4-007: END Set up tvshow data                 
         item.set_callback(list_seasons, url=program["hrefLink"])
         item.info["plot"] = program["overlayText"]
         expanded_tile = program.get("expandedTile")
@@ -773,7 +1000,9 @@ def list_programs(plugin, url, offset, **kwargs):
         yield item
 
 
-@Route.register
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="seasons")
 def list_seasons(plugin, url, **kwargs):
     html_text = urlquick.get(url,
                              headers=BASIC_HEADERS,
@@ -786,10 +1015,19 @@ def list_seasons(plugin, url, **kwargs):
             datas = json.loads(re.sub(r'^.*?{', '{', script_text).replace("undefined", "{}"))['initialData']['brand']
             brand_name = datas['websafeTitle']
             genres = []
+            # CH4-008: START debug
+            if debug == True:
+                log_message('list_seasons: datas = ' + str(datas))
+                log_message('showtitle = ' + str(datas['title']))
+            # CH4-008: END debug             
             if "categories" in datas and datas['categories']:
                 genres = [genre["displayName"].strip() for genre in datas["categories"]]
             fanart = datas.get('images', {}).get('hero', {}).get('landscape', {}).get('src', None)
             if bool(datas['allSeriesCount']) is False or len(datas['series']) == 0:
+                # CH4-008: START debug
+                if debug == True:
+                    log_message('list_seasons: path 1 (callback = get_video) taken')
+                # CH4-008: END debug                
                 for episode in datas['episodes']:
                     if episode.get('assetId'):
                         item = Listitem()
@@ -820,8 +1058,16 @@ def list_seasons(plugin, url, **kwargs):
                         item_post_treatment(item)
                         yield item
             else:
+                # CH4-008: START debug
+                if debug == True:
+                    log_message('list_seasons: path 2 (callback = get_episode_list) taken')
+                # CH4-008: END debug                  
                 series = datas['series']
                 for season in series:
+                    # CH4-008: START debug
+                    if debug == True:
+                        log_message('list_series (path 2): series = ' + str(series))
+                    # CH4-008: END debug                       
                     series_number = season['seriesNumber']
                     item = Listitem()
                     item.label = season['title']
@@ -838,11 +1084,21 @@ def list_seasons(plugin, url, **kwargs):
                     item.info['season'] = series_number
                     add_my_list_context_menu(item, brand_name)
                     item_post_treatment(item)
+                    # CH4-007: START Set up season data
+                    item.info['tvshowtitle'] = datas['title']
+                    item.info['title'] = season['title']
+                    showtitle = datas['title']
+                    item.set_callback(get_episodes_list, showtitle, series, series_number, datas)
+                    # CH4-007: END Set up season data                      
                     yield item
 
 
-@Route.register
-def get_episodes_list(plugin, series, series_number, datas, **kwargs):
+# CH4-003: Customise Viewtypes
+# @Route.register
+@Route.register(content_type="episodes")
+# CH4-007: pass TV Show Title to get_episodes_list
+#def get_episodes_list(plugin, series, series_number, datas, **kwargs):
+def get_episodes_list(plugin, showtitle, series, series_number, datas, **kwargs):
     genres = []
     if "categories" in datas and datas['categories']:
         genres = [genre["displayName"].strip() for genre in datas["categories"]]
@@ -850,6 +1106,10 @@ def get_episodes_list(plugin, series, series_number, datas, **kwargs):
     brand_name = datas['websafeTitle']
     for episode in datas['episodes']:
         if episode['seriesNumber'] == series_number and episode.get('assetId'):
+            # CH4-008: START debug
+            if debug == True:
+                log_message('get_episodes_list: episode = ' + str(episode))
+            # CH4-008: END debug              
             item = Listitem()
             toreplace = re.compile(r'(.*?)Episode').findall(episode['title'])
             if bool(toreplace):
@@ -863,8 +1123,11 @@ def get_episodes_list(plugin, series, series_number, datas, **kwargs):
             item.art['fanart'] = fanart
             item.set_callback(get_video, programmeId=episode['programmeId'], assetId=episode['assetId'])
             item.info['plot'] = episode['summary']
-            if 'guidance' in episode and episode['guidance']:
-                item.info['plot'] = item.info['plot'] + '\n\n' + episode['guidance']
+            # CH4-007: START setup episode data
+            # if 'guidance' in episode and episode['guidance']:
+                # item.info['plot'] = item.info['plot'] + '\n\n' + episode['guidance']
+            item.info['tvshowtitle'] = showtitle            
+            # CH4-007: END setup episode data
             yyyy_mm_dd_date_str = extract_yyyy_mm_dd_date_str(episode.get('dateLabel'))
             if yyyy_mm_dd_date_str:
                 item.info.date(yyyy_mm_dd_date_str, '%Y-%m-%d')
