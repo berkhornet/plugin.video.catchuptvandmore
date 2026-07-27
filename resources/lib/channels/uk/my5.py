@@ -70,6 +70,9 @@ fanartpath        = os.path.join(UK_CHANNELS,       '5_fanart.jpg')
 iconpath          = os.path.join(UK_CHANNELS,       '5.png')
 # END MY5-001: Customise My5 artwork - create constants
 
+# MY5-012: Additional import required
+from codequick.support import dispatcher
+
 # MY5-008: Start debug
 debug = True
 def log_message(message, level=xbmc.LOGINFO):
@@ -254,7 +257,7 @@ def list_main_page(plugin, **kwargs):
     """    
         
     # My List
-    li = Listitem.from_dict(list_my_list_shows, 'My List')
+    li = Listitem.from_dict(list_my_list_shows, 'Watchlist')
     li.art["thumb"] = media_dir + 'My List.png'
     li.art["fanart"] = ''   
     yield li
@@ -342,9 +345,29 @@ def list_submenu_my5(plugin, **kwargs):
 def list_my_list_shows(plugin, **_):
     """List all items currently on channel5's MyList."""
     my_shows = request_user_collection('mylist', show_login_msg=True)
+    
+    # MY5-012: START Prevent empty "Continue Watching" run time error
     if not my_shows:
-        yield False
-        return
+        my5_list_type = 'Watchlist'
+        window_id = xbmcgui.getCurrentWindowId()
+        if window_id in (10000, 11101, 11102, 11103, 11104):
+            # Home page widget - simple empty list that displays nothing
+            yield False
+            return
+        else:            
+            # Within the addon - display a fake empty directory
+            item = Listitem()
+            item.label = my5_list_type
+            item.info['title'] = 'Empty List'
+            item.info['tvshowtitle'] = my5_list_type
+            item.info['plot'] = 'Your Channel 5 ' +  my5_list_type + ' list is empty.'
+            item.info['duration'] = None
+            item.info['mediatype'] = 'image' # prevents AF3 Info_line display         
+            item.art["thumb"] = fanartpath
+            item.art["fanart"] = ''
+            yield item
+    # MY5-012: END Prevent empty "Continue Watching" run time error    
+    
     # Update the cached list of ID's
     global my_list_ids
     my_list_ids = [s['id'] for s in my_shows]
@@ -370,12 +393,27 @@ def list_recommendations(plugin, **_):
 @Route.register(content_type="videos")
 def list_continue_watching(_):
     watchables = request_user_collection('continuewatching', show_login_msg=True)
-    # MY5-005: START Prevent empty "Continue Watching" run time error
+    # MY5-012: START Prevent empty "Continue Watching" run time error
     if not watchables:
-        log_message('CONTINUE WATCHING FOLDER EMPTY')        
-        yield False
-        return
-    # MY5-005: END Prevent empty "Continue Watching" run time error
+        my5_list_type = 'Continue Watching'
+        window_id = xbmcgui.getCurrentWindowId()
+        if window_id in (10000, 11101, 11102, 11103, 11104):
+            # Home page widget - simple empty list that displays nothing
+            xbmcplugin.endOfDirectory(dispatcher.handle, True)
+            sys.exit()
+        else:            
+            # Within the addon - display a fake empty directory
+            item = Listitem()
+            item.label = my5_list_type
+            item.info['title'] = 'Empty List'
+            item.info['tvshowtitle'] = my5_list_type
+            item.info['plot'] = 'Your Channel 5 ' +  my5_list_type + ' list is empty.'
+            item.info['duration'] = None
+            item.info['mediatype'] = 'image' # prevents AF3 Info_line display         
+            item.art["thumb"] = fanartpath
+            item.art["fanart"] = ''
+            yield item
+    # MY5-012: END Prevent empty "Continue Watching" run time error
         
     for watchable in watchables:
         li = parse_watchable(watchable, from_episode_list=False)
