@@ -909,7 +909,6 @@ def list_slice(plugin, slice, list_type=None, **kwargs):
                 else:
                     item.info['plot'] = get_slice_item_plot(slice_item)
             # CH4-007: END Customise Watchlist Plot
-            item.art['thumb'] = item.art['landscape'
             item.art['thumb'] = item.art['landscape'] = slice_item["image"]["href"]
 
         if slice_item_type == 'brand':
