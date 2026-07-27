@@ -561,7 +561,7 @@ def main_menu(plugin, **kwargs):
     # Watchlist
     li = Listitem.from_dict(
         callback=list_my_four,
-        label='My List',
+        label='Watchlist',
         params={'list_type': 'MYLIST'}
     )
     li.art["thumb"] = media_dir + 'My List.png'
