@@ -683,7 +683,11 @@ def list_my_four(plugin, list_type, **_):
         else:            
             # Within the addon - display a fake empty directory
             item = Listitem()
-            item.label = my4_list_type + ': Empty List'
+            item.label = my4_list_type
+            item.info['title'] = 'Empty List'
+            item.info['tvshowtitle'] = my4_list_type
+            item.info['plot'] = 'Your Channel 4 ' +  my4_list_type + ' list is empty.'
+            item.info['duration'] = None
             item.info['mediatype'] = 'image' # prevents AF3 Info_line display         
             item.art["thumb"] = fanartpath
             item.art["fanart"] = ''
