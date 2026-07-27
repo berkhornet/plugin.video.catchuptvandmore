@@ -571,7 +571,7 @@ def main_menu(plugin, **kwargs):
     # Continue Watching
     li = Listitem.from_dict(
         callback=list_my_four,
-        label='Watching',
+        label='Continue Watching',
         params={'list_type': 'CONTINUE_WATCHING', '_cache_to_disc_': False}
     )
     li.art["thumb"] = media_dir + 'Continue Watching.png'
